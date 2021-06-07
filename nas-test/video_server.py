@@ -11,6 +11,8 @@ import re
 import io
 from dotenv import load_dotenv
 
+load_dotenv()
+
 APP = Flask(__name__)
 MEDIA_PATH = os.getenv('STORAGE_ABS_PATH')
 PROCESSED_VIDS_PATH = os.getenv('PROCESSED_VIDS_PATH')
@@ -36,7 +38,7 @@ class DriveHandler(FileSystemEventHandler):
             type = "folder"
         id = uuid.uuid1().int
         
-        new_path = f"{os.path.dirname(event.src_path)}/{str(id)}"
+        new_path = f"{os.path.dirname(event.src_path)}/{str(id)}" # should use os.path.join
         os.rename(event.src_path, new_path)
         
         directory[id] = {'name': os.path.basename(event.src_path), 'type': type, 'path': new_path[len(MEDIA_PATH):]}
@@ -62,6 +64,31 @@ class DriveHandler(FileSystemEventHandler):
         print("on_moved", event.src_path)
 
 BLACKLISTED_DIRS = ["#recycle", "@eaDir"]
+
+@APP.route('/mkdir', methods=['POST'])
+def get_folder_path():
+    parent_uuid = int(request.form['parent_uuid'])
+    parent_path = MEDIA_PATH
+    if parent_uuid != 0 and directory[parent_uuid]['type'] == 'folder':
+        parent_path = os.path.join(MEDIA_PATH, directory[parent_uuid]['path'])
+    elif parent_uuid != 0:
+        return jsonify(success=False), 400
+    
+    mkdir_path = os.path.join(parent_path, request.form['name'])
+    os.mkdir(mkdir_path)
+    return jsonify(success=True), 200
+    
+@APP.route('/folder', methods=['POST'])
+def get_drive_folder_path():
+    folder_uuid = int(request.form['uuid'])
+    parent_path = MEDIA_PATH
+    if folder_uuid != 0 and directory[folder_uuid]['type'] == 'folder':
+        # parent_path = os.path.join(MEDIA_PATH, directory[folder_uuid]['path'])
+        return jsonify(path=directory[folder_uuid]['path']), 200
+    elif parent_uuid == 0:
+        return jsonify(path="."), 200
+    
+    return jsonify(success=False), 400
 
 @APP.route('/', methods=['GET', 'POST'])
 @APP.route('/<str_id>', methods=['GET', 'POST'])
@@ -91,7 +118,8 @@ def serve_file(str_id=None):
                 for entry in entries:
                     if not entry.name in BLACKLISTED_DIRS:
                         file_id = int(entry.name)
-                        resp_data.append({'name': directory[file_id]['name'], 'is_folder': entry.is_dir(), 'uuid': file_id})
+                        resp_data.append({'name': directory[file_id]['name'], 'type': directory[file_id]['type'], 'uuid': file_id})
+                        # resp_data.append({'name': directory[file_id]['name'], 'is_folder': entry.is_dir(), 'uuid': file_id})
                 print(resp_data)
                 resp = make_response(jsonify(resp_data))
                 resp.headers['Query-Type'] = 'folder'

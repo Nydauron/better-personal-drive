@@ -2,14 +2,26 @@
     <head>
         <title>Hello</title>
         <style>
+            @font-face {
+                font-family: "Dosis-Light";
+                src: url("/assets/Dosis-Light.ttf");
+            }
             table {
                 position: relative;
                 left: 50%;
                 transform: translateX(-50%);
+                width: 80%;
+            }
+            table th, table td {
+                font-family: "Dosis-Light", serif;
+                padding: 10px 5px;
+            }
+            td.item-type {
+                text-align: center;
             }
         </style>
         <script>
-        console.log(window.location.pathname)
+            console.log(window.location.pathname)
             async function upload_file(inp) {
                 let formData = new FormData();
                 // var reader = new FileReader();
@@ -24,7 +36,34 @@
                 try {
                     url = "/upload";
                     if (window.location.pathname != '/'){
-                        url = window.location.pathname + "/upload";
+                        url = window.location.pathname + url;
+                    }
+                    let r = await fetch(url, 
+                        {method: "POST", body: formData}); //, signal: ctrl.signal}); 
+                    console.log('HTTP response code:',r.status); 
+                } catch(e) {
+                    console.log('Huston we have problem...:', e);
+                }
+            }
+            
+            async function mkdir(inp) {
+                if (event.keyCode != 13) {
+                    return;
+                }
+                let formData = new FormData();
+                // var reader = new FileReader();
+                let folder = inp.value;      
+                     
+                formData.append("name", folder);
+                // formData.append("name", file.name);
+                
+                // const ctrl = new AbortController()    // timeout
+                // setTimeout(() => ctrl.abort(), 5000);
+                
+                try {
+                    url = "/mkdir";
+                    if (window.location.pathname != '/'){
+                        url = window.location.pathname + url;
                     }
                     let r = await fetch(url, 
                         {method: "POST", body: formData}); //, signal: ctrl.signal}); 
@@ -37,6 +76,7 @@
     </head>
     
     <body>
+        {% include 'header.html' %}
         <section>
             <article>
                 <table>
@@ -47,14 +87,13 @@
                         <th>Date Added</th>
                         <th>Last Modified</th>
                     </tr>
-                <div id='page-container'>
-                {% for item in files -%}
-                    <tr><td><a href="{{ host }}/{{ item['uuid'] }}">{{ item['name'] }}</a></td><td>{{ item['type'] }}</td> <td></td> <td></td> <td></td></tr>
-                {%- endfor %}
-                </div>
+                    {% for item in files -%}
+                    <tr><td class="item-name"><a href="{{ host }}/{{ item['uuid'] }}">{{ item['name'] }}</a></td><td class="item-type">{{ item['type'] }}</td> <td class="item-created"></td> <td class="item-added"></td> <td class="item-modified"></td></tr>
+                    {%- endfor %}
             </table>
             </article>
         </section>
         <input type="file" id="myFile" name="filename" onchange="upload_file(this)">
+        <input type="text" id="mkdir" name="name" placeholder="New Folder" onkeydown="mkdir(this)">
     </body>
 </html>
