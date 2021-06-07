@@ -1,0 +1,60 @@
+<html>
+    <head>
+        <title>Hello</title>
+        <style>
+            table {
+                position: relative;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+        </style>
+        <script>
+        console.log(window.location.pathname)
+            async function upload_file(inp) {
+                let formData = new FormData();
+                // var reader = new FileReader();
+                let file = inp.files[0];      
+                     
+                formData.append("file", file);
+                // formData.append("name", file.name);
+                
+                // const ctrl = new AbortController()    // timeout
+                // setTimeout(() => ctrl.abort(), 5000);
+                
+                try {
+                    url = "/upload";
+                    if (window.location.pathname != '/'){
+                        url = window.location.pathname + "/upload";
+                    }
+                    let r = await fetch(url, 
+                        {method: "POST", body: formData}); //, signal: ctrl.signal}); 
+                    console.log('HTTP response code:',r.status); 
+                } catch(e) {
+                    console.log('Huston we have problem...:', e);
+                }
+            }
+        </script>
+    </head>
+    
+    <body>
+        <section>
+            <article>
+                <table>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Date Created</th>
+                        <th>Date Added</th>
+                        <th>Last Modified</th>
+                    </tr>
+                <div id='page-container'>
+                {% for item in files -%}
+                    <tr><td><a href="{{ host }}/{{ item['uuid'] }}">{{ item['name'] }}</a></td><td>{{ item['type'] }}</td> <td></td> <td></td> <td></td></tr>
+                {%- endfor %}
+                </div>
+            </table>
+            </article>
+        </section>
+        <input type="file" id="myFile" name="filename" onchange="upload_file(this)">
+    </body>
+</html>

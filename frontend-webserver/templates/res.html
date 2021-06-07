@@ -1,0 +1,37 @@
+<html>
+    <head>
+        <title>Hello</title>
+        <style>
+            {% if type[:6] == 'video/' -%}
+            video {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+            {% elif type[:6] == 'image/' -%}
+            img {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                max-height: 90vh;
+                max-width: 90vw;
+            }
+            {%- endif %}
+            body {
+                background: black;
+            }
+        </style>
+    </head>
+
+    <body>
+        {% if type[:6] == 'video/' -%}
+        <video height="720" width="1280" controls>
+            <source src="{{server_host}}/{{video}}" type="{{ type }}">
+        </video>
+        {% elif type[:6] == 'image/' -%}
+        <img id="pic" src="data:{{ type }};base64,{{ img_data }}">
+        {%- endif %}
+    </body>
+</html>
