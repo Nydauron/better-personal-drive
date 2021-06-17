@@ -1,11 +1,8 @@
 <html>
     <head>
         <title>Hello</title>
+        <link rel="stylesheet" type="text/css" href="/assets/dosis-light.css">
         <style>
-            @font-face {
-                font-family: "Dosis-Light";
-                src: url("/assets/Dosis-Light.ttf");
-            }
             table {
                 position: relative;
                 left: 50%;
@@ -13,11 +10,47 @@
                 width: 80%;
             }
             table th, table td {
-                font-family: "Dosis-Light", serif;
+                /* font-family: "Dosis-Light", serif; */
                 padding: 10px 5px;
             }
             td.item-type {
                 text-align: center;
+            }
+            #fileProgress {
+                display: none;
+            }
+            
+            .loader {
+                border: 16px solid #f3f3f3;
+                border-radius: 50%;
+                border-top: 16px solid #3498db;
+                width: 120px;
+                height: 120px;
+                -webkit-animation: spin 2s linear infinite; /* Safari */
+                animation: spin 1.2s cubic-bezier(0.105, 0.610, 0.865, 0.400) infinite;
+                opacity: 0;
+                transition: opacity 0.5s;
+            }
+            
+            .loader.uploadProcessing {
+                opacity: 1;
+            }
+
+            /* Safari */
+            @-webkit-keyframes spin {
+                0% { -webkit-transform: rotate(0deg); }
+                100% { -webkit-transform: rotate(360deg); }
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            #drive-directory {
+                transition: background 1s;
+            }
+            #drive-directory.draghover {
+                background: blue;
             }
         </style>
         <script>
@@ -33,16 +66,69 @@
                 // const ctrl = new AbortController()    // timeout
                 // setTimeout(() => ctrl.abort(), 5000);
                 
-                try {
-                    url = "/upload";
-                    if (window.location.pathname != '/'){
-                        url = window.location.pathname + url;
+                // try {
+                //     url = "/upload";
+                //     if (window.location.pathname != '/'){
+                //         url = window.location.pathname + url;
+                //     }
+                //     let r = await fetch(url, 
+                //         {method: "POST", body: formData}); //, signal: ctrl.signal}); 
+                //     console.log('HTTP response code:',r.status); 
+                // } catch(e) {
+                //     console.log('Huston we have problem...:', e);
+                // }
+                
+                progressBar = document.getElementById('fileProgress');
+                progressBar.style.display = 'block';
+                
+                url = "/upload";
+                if (window.location.pathname != '/'){
+                    url = window.location.pathname + url;
+                }
+                let request = new XMLHttpRequest();
+                
+                request.open('POST', url);
+                request.addEventListener('load', function(e) {
+                    document.getElementById('upload-spin').classList.remove("uploadProcessing");
+                    console.log(request.response);
+                    console.log("transfer complete")
+                });
+                request.upload.addEventListener('progress', function(e) {
+                	let percent_complete = (e.loaded / e.total)*100;
+                	
+                    if (percent_complete < 100) {
+                        progressBar.value = percent_complete;
+                        progressBar.innerHTML = percent_complete + "%";
+                    } else {
+                        progressBar.style.display = 'none';
+                        document.getElementById('upload-spin').classList.add("uploadProcessing");
                     }
-                    let r = await fetch(url, 
-                        {method: "POST", body: formData}); //, signal: ctrl.signal}); 
-                    console.log('HTTP response code:',r.status); 
-                } catch(e) {
-                    console.log('Huston we have problem...:', e);
+                	// percentage of upload completed
+                	console.log(percent_complete);
+                });
+                request.send(formData);
+            }
+            
+            function dropHandler(ev) {
+                console.log('File(s) dropped');
+
+                // Prevent default behavior (Prevent file from being opened)
+                ev.preventDefault();
+
+                if (ev.dataTransfer.items) {
+                // Use DataTransferItemList interface to access the file(s)
+                for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+                    // If dropped items aren't files, reject them
+                    if (ev.dataTransfer.items[i].kind === 'file') {
+                        var file = ev.dataTransfer.items[i].getAsFile();
+                        console.log('... file[' + i + '].name = ' + file.name);
+                    }
+                }
+                } else {
+                // Use DataTransfer interface to access the file(s)
+                    for (var i = 0; i < ev.dataTransfer.files.length; i++) {
+                        console.log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
+                    }
                 }
             }
             
@@ -72,13 +158,22 @@
                     console.log('Huston we have problem...:', e);
                 }
             }
+            
+            function dragEnterHandler(ev) {
+                ev.preventDefault();
+                document.getElementById('drive-directory').classList.add('draghover');
+            }
+            function dragLeaveHandler(ev) {
+                ev.preventDefault();
+                document.getElementById('drive-directory').classList.remove('draghover');
+            }
         </script>
     </head>
     
     <body>
         {% include 'header.html' %}
         <section>
-            <article>
+            <article id="drive-directory" ondragenter="dragEnterHandler(event)" ondragleave="dragLeaveHandler(event)" ondragover="event.preventDefault()" ondrop="dropHandler(event)">
                 <table>
                     <tr>
                         <th>Name</th>
@@ -93,7 +188,8 @@
             </table>
             </article>
         </section>
-        <input type="file" id="myFile" name="filename" onchange="upload_file(this)">
+        <input type="file" id="fileUpload" name="filename" onchange="upload_file(this)">
+        <progress id="fileProgress" value="0" max="100"></progress><div id="upload-spin" class="loader"></div><br>
         <input type="text" id="mkdir" name="name" placeholder="New Folder" onkeydown="mkdir(this)">
     </body>
 </html>

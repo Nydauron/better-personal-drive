@@ -1,0 +1,8 @@
+@font-face {
+    font-family: "Dosis-Light";
+    src: url("/assets/Dosis-Light.ttf");
+}
+
+body {
+    font-family: "Dosis-Light", serif;
+}

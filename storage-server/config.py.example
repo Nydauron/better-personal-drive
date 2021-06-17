@@ -1,0 +1,2 @@
+DATABASE_URI = <database URI supported by SQLAlchemy>
+JWT_PUB_FILE = <file name of RSA public key>

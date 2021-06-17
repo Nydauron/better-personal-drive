@@ -1,0 +1,4 @@
+SECRET_KEY = <A nice random secret key>
+DATABASE_URI = <database URI supported by SQLAlchemy>
+JWT_PRIV_FILE = <file name of RSA private key>
+JWT_PUB_FILE = <file name of RSA public key>

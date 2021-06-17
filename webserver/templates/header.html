@@ -7,7 +7,24 @@
         font-family: "Nunito-SemiBold";
         font-size: 32pt;
     }
+    header > h1 > a {
+        text-decoration: none;
+        color: black;
+    }
+    header > div {
+        border: 1px;
+        padding: 5px;
+        display: inline-block;
+        position: absolute;
+        right: 1%;
+        top: 5px;
+    }
 </style>
 <header>
-    <h1>Better Cloud Drive</h1>
+    <h1><a href="/">Better Cloud Drive</a></h1>
+    {% if 'userToken' in session -%}
+    <div>
+        <a href="/logout">logout</a>
+    </div>
+    {%- endif %}
 </header>

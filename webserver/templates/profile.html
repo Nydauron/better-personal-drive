@@ -1,0 +1,20 @@
+<html>
+    <head>
+        <title>Profile Settings</title>
+    </head>
+    
+    <body>
+        {% include 'header.html' %}
+        <section>
+            <form action="/update-password" method="post">
+                <label for="cur-pass">Password:</label><input id="cur-pass" name="cur-pass" type="password"><br>
+                <label for="new-pass0">Password:</label><input id="new-pass0" name="new-pass0" type="password"><br>
+                <label for="new-pass1">Password:</label><input id="new-pass1" name="new-pass1" type="password">
+                <input type="submit" value="Update">
+            </form>
+            {% for message in get_flashed_messages() -%}
+            {{message}}
+            {%- endfor %}
+        </section>
+    </body>
+</html>

@@ -22,16 +22,31 @@
             body {
                 background: black;
             }
+            #download {
+                position: absolute;
+                right: 15px;
+            }
         </style>
     </head>
 
     <body>
+        <div id="download">
+            <a href="{{server_host}}/{{file_id}}/view" download>
+                <svg height="60" width="60">
+                    <polyline points="10,40 10,55 50,55 50,40" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
+                    <polyline points="20,35 30,45 40,35" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
+                    <line x1="30" y1="15" x2="30" y2="45" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></line>
+                </svg>
+            </a>
+        </div>
         {% if type[:6] == 'video/' -%}
         <video height="720" width="1280" controls>
-            <source src="{{server_host}}/{{video}}" type="{{ type }}">
+            <source src="{{server_host}}/{{file_id}}/view" type="{{ type }}">
+            <!--<source src="http://192.168.9.115:8000/{{file_id}}" type="{{ type }}">-->
         </video>
         {% elif type[:6] == 'image/' -%}
-        <img id="pic" src="data:{{ type }};base64,{{ img_data }}">
+        <img id="pic" src="{{server_host}}/{{file_id}}/view">
+        <!-- <img id="pic" src="data:{{ type }};base64,{{ img_data }}"> -->
         {%- endif %}
     </body>
 </html>
