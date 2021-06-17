@@ -1,3 +1,10 @@
 **/venv
 **/.env
 **/id_rsa
+**/*.key
+**/*.key.pub
+**/*.ppk
+**/__pycache__
+**/migrations
+**/config.py
+**/*.db
