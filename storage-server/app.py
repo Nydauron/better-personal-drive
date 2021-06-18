@@ -334,7 +334,7 @@ def serve_file(str_id=None):
 
 @app.route('/upload', methods=['POST'])
 @app.route('/upload/<dir_id>', methods=['POST'])
-# @check_req_auth('t')
+@check_req_auth('t')
 def upload_handler(dir_id=None):
     print(dir_id)
     actual_parent_path = "."
@@ -343,12 +343,8 @@ def upload_handler(dir_id=None):
         if not folder:
             return jsonify(success=False), 404
         actual_parent_path = folder.path
-    # print(request.files)
-    # print(request.files.keys())
     for filename in request.files.keys():
-        # print(file_key)
         f = request.files[filename]
-        # print(actual_parent_path)
         path = os.path.join(MEDIA_PATH, actual_parent_path, secure_filename(filename))
         print(path)
         f.save(path)
@@ -362,12 +358,6 @@ print(f"Storage is located at {MEDIA_PATH}")
 observer.start()
 
 if __name__ == '__main__':
-    # if not os.path.isfile(DIRECTORY_PKL):
-    #     with open(DIRECTORY_PKL, "w+b") as f:
-    #         pickle.dump(directory, f)
-    # else:
-    #     with open(DIRECTORY_PKL, "rb") as f:
-    #         directory = pickle.load(f)
     app.run(host='0.0.0.0', port=os.getenv('FLASK_PORT'), threaded=True)
     observer.stop()
     observer.join()
