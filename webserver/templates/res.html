@@ -27,6 +27,28 @@
                 right: 15px;
             }
         </style>
+        <script>
+        async function createShareLink() {
+            let formData = new FormData();    
+                 
+            formData.append("expire_at", JSON.stringify({"hours": 2}));
+            
+            url = "/create-share-url/";
+            if (window.location.pathname != '/'){
+                url = url + window.location.pathname;
+            }
+            
+            let request = new XMLHttpRequest();
+            
+            request.open('POST', url);
+            request.addEventListener('load', function(e) {
+                console.log(request);
+                console.log(request.response);
+            });
+            
+            request.send(formData);
+        }
+        </script>
     </head>
 
     <body>

@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, session, jsonify, redirect, send_file, make_response, url_for, flash, abort, Response
 from flask_migrate import Migrate
-from models import db, Account
+from models import db, Account, ShareLink
 from flask_bcrypt import Bcrypt
 from markupsafe import escape
 from werkzeug.utils import secure_filename
@@ -16,6 +16,8 @@ import datetime
 from functools import update_wrapper
 import inspect
 from keys import JWT_PRIV_KEY, JWT_PUB_KEY, JWT_STOR_KEY
+import uuid
+import json
 
 load_dotenv()
 
@@ -202,7 +204,7 @@ def frontend_upload(dir_id=""):
 @app.route('/<dir_id>/view')
 @check_auth('userToken', ['jareth'])
 def file_view(dir_id):
-    # BUG: Trying to play a large size video becomes literally unplayable using this method
+    # BUG (Fixed): Trying to play a large size video becomes literally unplayable using this method
     #  since this function is recieving the entire video first then sending it to the
     #  user (double the buffer time and in reality this is longer bc the end user
     #  player is buffering while playing the video simutaneously)
@@ -250,7 +252,25 @@ def backend_mkdir(dir = None):
         parent_uuid = int(dir)
     r = requests.post(f"{FILE_SERVER_HOST}/mkdir?t={url_fix(generate_JWT_storage_token())}", data={'parent_uuid': parent_uuid, "name": request.form['name']})
     return r.json(), r.status_code
+
+@app.route('/create-share-url/<file_id>', methods=['POST'])
+@check_auth('userToken', ['jareth'])
+def generate_share_url(file_id):
+    duration = datetime.timedelta(hours=1)
+    expire_key = 'expire_at'
+    timedelta_info = json.loads(request.form.get(expire_key))
+    # print(timedelta_info)
+    if timedelta_info:
+        duration = datetime.timedelta(**timedelta_info)
     
+    current_time = datetime.datetime.utcnow()
+    share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = current_time + duration)
+    
+    db.session.add(share_url)
+    db.session.commit()
+    
+    return jsonify(share_url=f"/share/{share_url.share_id}"), 200
+
 @app.route('/<dir>/upload', methods=['POST'])
 @app.route('/upload', methods=['POST'])
 @check_auth('userToken', ['jareth'])
