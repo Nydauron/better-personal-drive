@@ -175,6 +175,9 @@ def is_valid_token(tok, users_allowed = ['jareth']):
 @app.route('/<dir_id>')
 @check_auth('userToken', ['jareth'])
 def frontend_upload(dir_id=""):
+    return get_file_dir(dir_id)
+
+def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     try:
         admin_tok = generate_JWT_storage_token()
         # print(admin_tok)
@@ -193,10 +196,10 @@ def frontend_upload(dir_id=""):
         if r.headers['Content-Type'][:6] == "image/":
             data = BytesIO(r.content)
             encoded_img_data = base64.b64encode(data.getvalue())
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), img_data=encoded_img_data.decode('utf-8'))
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), img_data=encoded_img_data.decode('utf-8'), sharing = is_sharing, share_id=share_id)
             
         if r.headers['Content-Type'][:6] == "video/":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id))
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
         
         filename = re.findall(r"filename=(.+)", r.headers['Content-Disposition'])[0]
         return send_file(BytesIO(r.content), download_name=filename, as_attachment=True)
@@ -219,6 +222,9 @@ def file_view(dir_id):
     #  because there is no way to install the necessary Debian libraries/binaries
     #  (apt not included, doesnt come with ssl libraries or python3-cryptography)
     # print(request.headers)
+    return view_file(dir_id)
+    
+def view_file(dir_id):
     try:
         r = requests.request(
         method=request.method,
@@ -272,6 +278,29 @@ def generate_share_url(file_id):
     db.session.commit()
     
     return jsonify(share_url=f"/share/{share_url.share_id}"), 200
+    
+@app.route('/sharing/<share_id_str>', methods=['GET'])
+def get_share_view_page(share_id_str):
+    is_valid, file_id = is_valid_share_link(share_id_str)
+    if not is_valid:
+        return abort(404)
+    return get_file_dir(file_id, True, share_id_str)
+
+@app.route('/sharing/<share_id_str>/view', methods=['GET'])
+def get_share_content(share_id_str):
+    is_valid, file_id = is_valid_share_link(share_id_str)
+    if not is_valid:
+        return abort(404)
+    return view_file(file_id)
+    
+def is_valid_share_link(share_id_str):
+    share_uuid = uuid.UUID(hex=share_id_str)
+    if not share_uuid:
+        return False, None
+    res = ShareLink.query.filter_by(share_id=share_uuid).first()
+    if not res:
+        return False, None
+    return True, res.item_id.int
 
 @app.route('/<dir>/upload', methods=['POST'])
 @app.route('/upload', methods=['POST'])

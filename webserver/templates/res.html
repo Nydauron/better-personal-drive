@@ -66,11 +66,19 @@
         </div>
         {% if type[:6] == 'video/' -%}
         <video height="720" width="1280" controls>
+            {% if sharing -%}
+            <source src="{{server_host}}/sharing/{{share_id}}/view" type="{{ type }}">
+            {% else -%}
             <source src="{{server_host}}/{{file_id}}/view" type="{{ type }}">
+            {%- endif %}
             <!--<source src="http://192.168.9.115:8000/{{file_id}}" type="{{ type }}">-->
         </video>
         {% elif type[:6] == 'image/' -%}
+        {% if sharing -%}
+        <img id="pic" src="{{server_host}}/sharing/{{share_id}}/view">
+        {% else -%}
         <img id="pic" src="{{server_host}}/{{file_id}}/view">
+        {%- endif %}
         <!-- <img id="pic" src="data:{{ type }};base64,{{ img_data }}"> -->
         {%- endif %}
     </body>

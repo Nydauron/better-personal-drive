@@ -48,7 +48,7 @@ class Account(db.Model):
     hashed_pass = db.Column(db.String(72), nullable=False)
     
     def __repr__(self):
-        return f"<User(uuid={self.uuid}, username={self.username}, pass={self.hashed_pass})>"
+        return f"<UserAccount(uuid={self.uuid}, username={self.username}, pass={self.hashed_pass})>"
         
 class ShareLink(db.Model):
     share_id = db.Column(GUID(), primary_key=True, default=uuid.uuid1)
@@ -57,4 +57,4 @@ class ShareLink(db.Model):
     expires_at = db.Column(db.DateTime(), nullable=True) # NULL if forever links
     
     def __repr__(self):
-        return f"<User(share_id={self.share_id}, item_id={self.item_id}, expires={self.expires})>"
+        return f"<ShareLink(share_id={self.share_id}, item_id={self.item_id}, generated={self.generated_at}, expires={self.expires_at})>"
