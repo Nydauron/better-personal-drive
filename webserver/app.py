@@ -298,7 +298,11 @@ def is_valid_share_link(share_id_str):
     if not share_uuid:
         return False, None
     res = ShareLink.query.filter_by(share_id=share_uuid).first()
-    if not res:
+    if not res or res.expires_at < datetime.datetime.utcnow():
+        if res:
+            print("Shared link is expired. Deleting ...")
+            db.session.delete(res)
+            db.session.commit()
         return False, None
     return True, res.item_id.int
 
