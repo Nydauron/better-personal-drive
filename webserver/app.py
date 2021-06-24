@@ -1,8 +1,9 @@
 import os
 from flask import Flask, render_template, request, session, jsonify, redirect, send_file, make_response, url_for, flash, abort, Response
 from flask_migrate import Migrate
-from models import db, Account, ShareLink
+from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
+from models import db, Account, ShareLink
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 from werkzeug.urls import url_fix
@@ -32,6 +33,7 @@ SFTP_USERNAME = os.getenv('SFTP_USERNAME')
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
+csrf = CSRFProtect(app)
 db.init_app(app)
 
 migrate = Migrate(app, db)

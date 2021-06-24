@@ -12,17 +12,17 @@
             text-align: center;
             font-size: 18px;
         }
-        form input {
+        form input:not([type="hidden"]) {
             border: 3px solid #AAA;
             border-radius: 8px;
         }
-        form input[type=text], form input[type=password] {
+        form input[type="text"], form input[type="password"] {
             padding: 4px;
             margin: 5px;
             box-sizing: border-box;
             transition: border 0.7s;
         }
-        form input[type=text]:focus, form input[type=password]:focus {
+        form input[type="text"]:focus, form input[type="password"]:focus {
             border: 3px solid #0A0A0A;
         }
         
@@ -150,6 +150,7 @@
             <article>
                 <h2>Sign In</h2>
                 <form action="/login" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input id="user" name="user" type="text" placeholder="Username"><br>
                     <input id="pass" name="pass" type="password" placeholder="Password"><br>
                     <div class="box-outer">

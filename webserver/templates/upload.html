@@ -55,6 +55,7 @@
         </style>
         <script>
             console.log(window.location.pathname)
+            let csrf_token = "{{ csrf_token() }}";
             async function upload_file(inp) {
                 let formData = new FormData();
                 // var reader = new FileReader();
@@ -88,6 +89,7 @@
                 let request = new XMLHttpRequest();
                 
                 request.open('POST', url);
+                request.setRequestHeader("X-CSRFToken", csrf_token);
                 request.addEventListener('load', function(e) {
                     document.getElementById('upload-spin').classList.remove("uploadProcessing");
                     console.log(request.response);
@@ -152,7 +154,7 @@
                         url = window.location.pathname + url;
                     }
                     let r = await fetch(url, 
-                        {method: "POST", body: formData}); //, signal: ctrl.signal}); 
+                        {method: "POST", headers: {"X-CSRFToken": csrf_token}, body: formData}); //, signal: ctrl.signal}); 
                     console.log('HTTP response code:',r.status); 
                 } catch(e) {
                     console.log('Huston we have problem...:', e);

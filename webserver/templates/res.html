@@ -28,6 +28,8 @@
             }
         </style>
         <script>
+        let csrf_token = "{{ csrf_token() }}";
+        
         async function createShareLink() {
             let formData = new FormData();    
                  
@@ -41,6 +43,7 @@
             let request = new XMLHttpRequest();
             
             request.open('POST', url);
+            request.setRequestHeader("X-CSRFToken", csrf_token);
             request.addEventListener('load', function(e) {
                 console.log(request);
                 console.log(request.response);
