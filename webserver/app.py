@@ -277,7 +277,7 @@ def generate_share_url(file_id):
     db.session.add(share_url)
     db.session.commit()
     
-    return jsonify(share_url=f"/share/{share_url.share_id}"), 200
+    return jsonify(share_url=f"/sharing/{share_url.share_id.hex}"), 200
     
 @app.route('/sharing/<share_id_str>', methods=['GET'])
 def get_share_view_page(share_id_str):
