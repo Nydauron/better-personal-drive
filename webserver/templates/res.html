@@ -134,43 +134,58 @@
                 
                 request.open('POST', url);
                 request.setRequestHeader("X-CSRFToken", csrf_token);
-                request.addEventListener('load', function(e) {
-                    document.getElementById("share-wrapper").classList.add("focus");
-                    let table = document.getElementById("share-table");
-                    if (request.status == 200) {
-                        let currentTime = Date.now();
-                        let urls = JSON.parse(request.response).urls;
-                        if (urls.length != 0) {
-                            let table_builder = "<tr><th>Link URL</th><th>Expires</th></tr>\n";
-                            urls.forEach((e, idx) => {
-                                table_builder += "<tr>";
-                                table_builder += "<td>" + e['url'] + "</td>";
-                                if (e['expires_delta'] == null) {
-                                    table_builder += "<td>Until deleted</td>";
-                                } else {
-                                    let expire_time = new Date(currentTime + e['expires_delta'] * 1000);
-                                    table_builder += "<td>" + expire_time.toLocaleString() + "</td>";
-                                }
-                                table_builder += '<td><div class="share-delete-action" data-share-url="' + e['id'] + '"><svg height="20" width="20"><line stroke-linecap="round" x1="18" y1="2" x2="2" y2="18"></line><line stroke-linecap="round" x1="2" y1="2" x2="18" y2="18"></line></svg></div></td>';
-                                table_builder += "</tr>\n";
-                            });
-                            table.innerHTML = table_builder;
-                            
-                            $('div.share-delete-action').each(function () {
-                                var $this = $(this);
-                                $this.on("click", function () {
-                                    deleteShareURL($(this).data('shareUrl'), $(this).parent().parent());
-                                });
-                            });
-                        } else {
-                            table.innerHTML = "No links";
-                        }
-                    } else {
-                        table.innerHTML = "Something wrong happened! :(";
-                    }
-                });
+                request.addEventListener('load', (e) => {responseHandler(request, e);});
                 
                 request.send();
+            }
+            
+            function responseHandler(request, e) {
+                let currentTime = Date.now();
+                document.getElementById("share-wrapper").classList.add("focus");
+                let table = $('#share-table');
+                if (request.status == 200) {
+                    let urls = JSON.parse(request.response).urls;
+                    if (urls.length != 0) {
+                        table.html('');
+                        table.append($('<tr></tr>').append($('<th></th>', {text: "Link URL"}), $('<th></th>', {text: "Expires"})));
+                        
+                        let table_rows = [];
+                        urls.forEach((e, idx) => {
+                            let table_cells = [];
+                            table_cells.push($('<td></td>', {text: e['url']}));
+                            if (e['expires_delta'] == null) {
+                                table_cells.push($('<td></td>', {text: "Until deleted"}));
+                            } else {
+                                let expire_time = new Date(currentTime + e['expires_delta'] * 1000);
+                                table_cells.push($('<td></td>', {text: expire_time.toLocaleString()}));
+                            }
+                            svg_elem = generateCrossSVGObject();
+                            table_cells.push($('<td></td>', {"class": "share-delete-action", "data-share-url": e['id']}).append(svg_elem));
+                            table_rows.push($('<tr></tr>').append(table_cells));
+                        });
+                        
+                        table.append(table_rows)
+                        
+                        $('td.share-delete-action').each(function () {
+                            var $this = $(this);
+                            $this.on("click", function () {
+                                deleteShareURL($(this).data('shareUrl'), $(this).parent());
+                            });
+                        });
+                    } else {
+                        table.text("No links");
+                    }
+                } else {
+                    table.text("Something wrong happened! :(");
+                }
+            }
+            
+            function generateCrossSVGObject(size = 20) {
+                // Want jquery to be able to make this dynamically but its a pain in the ass wtf
+                return '<svg height="20" width="20"><line stroke-linecap="round" x1="18" y1="2" x2="2" y2="18"></line><line stroke-linecap="round" x1="2" y1="2" x2="18" y2="18"></line></svg>';
+                // lines = [$('<line></line>', {"stroke-linecap": "round", "x1": Math.floor(0.9 * size), "y1": Math.floor(0.1 * size), "x2": Math.floor(0.1 * size), "y2": Math.floor(0.9 * size)}),
+                //         $('<line></line>', {"stroke-linecap": "round", "x1": Math.floor(0.1 * size), "y1": Math.floor(0.1 * size), "x2": Math.floor(0.9 * size), "y2": Math.floor(0.9 * size)})];
+                // return $('<svg height="'+ size + '" width="'+ size + '"></svg>').append(lines);
             }
             
             async function deleteShareURL(shareID, rowElem) {
@@ -182,7 +197,7 @@
                 request.setRequestHeader("X-CSRFToken", csrf_token);
                 request.addEventListener('load', function(e) {
                     if (request.status == 200) {
-                        rowElem.html("<td colspan=2>Deleted successfully.</td>");
+                        $(rowElem).html($('<td></td>', {"colspan": 2, text: "Deleted successfully."}));
                     }
                 });
                 
