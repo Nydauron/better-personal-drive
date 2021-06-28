@@ -261,18 +261,65 @@ def backend_mkdir(dir = None):
     r = requests.post(f"{FILE_SERVER_HOST}/mkdir?t={url_fix(generate_JWT_storage_token())}", data={'parent_uuid': parent_uuid, "name": request.form['name']})
     return r.json(), r.status_code
 
+@app.route('/get-share-urls/<file_id>', methods=['POST'])
+@check_auth('userToken', ['jareth'])
+def get_all_share_links(file_id):
+    item_id = uuid.UUID(int=int(file_id))
+    if not item_id:
+        return abort(404)
+    share_urls = ShareLink.query.filter_by(item_id=item_id).all()
+    
+    valid_links = []
+    for s in share_urls:
+        cur_time = datetime.datetime.utcnow()
+        if not s.expires_at:
+            valid_links.append({"id": s.share_id.hex, "url": f"/sharing/{s.share_id.hex}", "expires_delta": None})
+        elif s.expires_at < cur_time:
+            db.session.delete(s)
+        else:
+            valid_links.append({"id": s.share_id.hex, "url": f"/sharing/{s.share_id.hex}", "expires_delta": (s.expires_at - cur_time).total_seconds()})
+    
+    db.session.commit()
+    
+    return jsonify(urls=valid_links), 200
+    
+@app.route('/delete-share-url/<share_id_str>', methods=['POST'])
+@check_auth('userToken', ['jareth'])
+def delete_share_url(share_id_str):
+    share_id = uuid.UUID(hex=share_id_str)
+    if not share_id:
+        return abort(404)
+    share_url = ShareLink.query.filter_by(share_id=share_id).first()
+    if not share_url:
+        return jsonify(success=False), 404
+    
+    db.session.delete(share_url)
+    db.session.commit()
+    return jsonify(success=True), 200
+
 @app.route('/create-share-url/<file_id>', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def generate_share_url(file_id):
-    duration = datetime.timedelta(hours=1)
-    expire_key = 'expire_at'
-    timedelta_info = json.loads(request.form.get(expire_key))
-    # print(timedelta_info)
-    if timedelta_info:
-        duration = datetime.timedelta(**timedelta_info)
-    
     current_time = datetime.datetime.utcnow()
-    share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = current_time + duration)
+    if 'expire_in' in request.form:
+        timedelta_info = json.loads(request.form['expire_in'])
+        
+        if timedelta_info:
+            duration = datetime.timedelta(**timedelta_info)
+        else:
+            return jsonify(sucess=False), 400
+        
+        
+        expires_datetime = current_time + duration
+        if expires_datetime <= current_time:
+            return jsonify(sucess=False), 404
+        share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = expires_datetime)
+        
+    elif 'expire_at' in request.form:
+        pass
+    
+    else:
+        share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = None)
     
     db.session.add(share_url)
     db.session.commit()

@@ -1,6 +1,10 @@
 <html>
     <head>
         <title>Hello</title>
+        {% if not sharing -%}
+        <link rel="stylesheet" type="text/css" href="/assets/dosis-light.css">
+        <link rel="stylesheet" type="text/css" href="/assets/bootstrap-duration-picker.css">
+        {%- endif %}
         <style>
             {% if type[:6] == 'video/' -%}
             video {
@@ -8,6 +12,7 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
+                z-index: 0;
             }
             {% elif type[:6] == 'image/' -%}
             img {
@@ -17,53 +22,262 @@
                 transform: translate(-50%, -50%);
                 max-height: 90vh;
                 max-width: 90vw;
+                z-index: 0;
             }
             {%- endif %}
             body {
                 background: black;
             }
-            #download {
+            /* #download {
                 position: absolute;
                 right: 15px;
+            } */
+            nav {
+                position: relative;
+                z-index: 1;
+                float: right;
             }
+            nav > div {
+                display: inline-block;
+                position: relative;
+            }
+            svg path {
+                fill: rgb(255,255,255);
+            }
+            
+            {% if not sharing -%}
+            #share-wrapper {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: fit-content;
+                min-width: 600px;
+                min-height: 100px;
+                max-height: 600px;
+                visibility: hidden;
+                opacity: 0;
+                transition: visibility 0s 0.7s, opacity 0.7s;
+                z-index: 2;
+                background: white;
+                box-shadow: 10px 10px 5px black;
+                text-align: center;
+                padding: 0 10px;
+            }
+            #share-table td {
+                padding: 0 5px;
+                text-align: center;
+                width: fit-content;
+            }
+            #share-table tr {
+                height: 25px;
+            }
+            #share-table {
+                width: 600px;
+                position: relative;
+                transform: translateX(-50%);
+                left: 50%;
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            /* #share-wrapper > h3 {
+                text-align: center;
+            } */
+            #share-wrapper.focus {
+                visibility: visible;
+                transition: opacity 0.7s;
+                opacity: 1;
+            }
+            
+            .datetime-input {
+                display: none;
+            }
+            .datetime-input.selected {
+                display: inline-block;
+            }
+            
+            #create-wrapper *:not(.datetime-input){
+                display: inline-block;
+            }
+            
+            .share-delete-action svg line {
+                stroke: black;
+                stroke-width: 4;
+                transition: stroke 0.5s;
+            }
+            
+            .share-delete-action:hover svg line {
+                stroke: red;
+            }
+            
+            #submit-create-link {
+                border-radius: 4px;
+                border: solid 2px grey;
+                padding: 5px;
+                cursor: pointer;
+            }
+            {%- endif %}
         </style>
+        {% if not sharing -%}
+        <script src="https://code.jquery.com/jquery-3.6.0.slim.js"></script>
+        <script src="/assets/bootstrap-duration-picker.js"></script>
         <script>
-        let csrf_token = "{{ csrf_token() }}";
-        
-        async function createShareLink() {
-            let formData = new FormData();    
-                 
-            formData.append("expire_at", JSON.stringify({"hours": 2}));
+            let csrf_token = "{{ csrf_token() }}";
             
-            url = "/create-share-url/";
-            if (window.location.pathname != '/'){
-                url = url + window.location.pathname;
+            async function getAllShareLinks() {
+                url = "get-share-urls";
+                if (window.location.pathname != '/'){
+                    url = url + window.location.pathname;
+                }
+                
+                let request = new XMLHttpRequest();
+                
+                request.open('POST', url);
+                request.setRequestHeader("X-CSRFToken", csrf_token);
+                request.addEventListener('load', function(e) {
+                    document.getElementById("share-wrapper").classList.add("focus");
+                    let table = document.getElementById("share-table");
+                    if (request.status == 200) {
+                        let currentTime = Date.now();
+                        let urls = JSON.parse(request.response).urls;
+                        if (urls.length != 0) {
+                            let table_builder = "<tr><th>Link URL</th><th>Expires</th></tr>\n";
+                            urls.forEach((e, idx) => {
+                                table_builder += "<tr>";
+                                table_builder += "<td>" + e['url'] + "</td>";
+                                if (e['expires_delta'] == null) {
+                                    table_builder += "<td>Until deleted</td>";
+                                } else {
+                                    let expire_time = new Date(currentTime + e['expires_delta'] * 1000);
+                                    table_builder += "<td>" + expire_time.toLocaleString() + "</td>";
+                                }
+                                table_builder += '<td><div class="share-delete-action" data-share-url="' + e['id'] + '"><svg height="20" width="20"><line stroke-linecap="round" x1="18" y1="2" x2="2" y2="18"></line><line stroke-linecap="round" x1="2" y1="2" x2="18" y2="18"></line></svg></div></td>';
+                                table_builder += "</tr>\n";
+                            });
+                            table.innerHTML = table_builder;
+                            
+                            $('div.share-delete-action').each(function () {
+                                var $this = $(this);
+                                $this.on("click", function () {
+                                    deleteShareURL($(this).data('shareUrl'), $(this).parent().parent());
+                                });
+                            });
+                        } else {
+                            table.innerHTML = "No links";
+                        }
+                    } else {
+                        table.innerHTML = "Something wrong happened! :(";
+                    }
+                });
+                
+                request.send();
             }
             
-            let request = new XMLHttpRequest();
+            async function deleteShareURL(shareID, rowElem) {
+                url = "delete-share-url/" + shareID;
+                
+                let request = new XMLHttpRequest();
+                
+                request.open('POST', url);
+                request.setRequestHeader("X-CSRFToken", csrf_token);
+                request.addEventListener('load', function(e) {
+                    if (request.status == 200) {
+                        rowElem.html("<td colspan=2>Deleted successfully.</td>");
+                    }
+                });
+                
+                request.send();
+            }
             
-            request.open('POST', url);
-            request.setRequestHeader("X-CSRFToken", csrf_token);
-            request.addEventListener('load', function(e) {
-                console.log(request);
-                console.log(request.response);
+            function unfocusShareWrapper() {
+                document.getElementById("share-wrapper").classList.remove("focus");
+            }
+            
+            $(document).ready(() => {
+                $('.picker-helper').durationPicker();
+                $('.picker-helper').data('durationPicker').setValue(7200); // 2 hours
+                
+                $('select#datetime-type').change(() => {
+                    var option = $("select#datetime-type option:selected").val();
+                    
+                    $('.datetime-input').removeClass('selected');
+                    $('#datetime-opt-' + option).addClass('selected');
+                    $('#submit-create-link').unbind('click');
+                    $('#submit-create-link').click(() => {createNewShareLink(parseInt(option), $('.picker-helper').data('durationPicker').getValue());});
+                });
             });
             
-            request.send(formData);
-        }
+            async function createNewShareLink(optionNum, data) {
+                let formData = new FormData();    
+                
+                switch (optionNum) {
+                    case 0:
+                        break;
+                    case 1:
+                        let seconds = parseInt(data);
+                        if (seconds == NaN) {
+                            // user manipulated data value
+                            return;
+                        }
+                        formData.append("expire_in", JSON.stringify({"seconds": seconds}));
+                        break;
+                    case 2:
+                        // no data = forever link
+                        break;
+                }
+                
+                url = "create-share-url";
+                if (window.location.pathname != '/'){
+                    url = url + window.location.pathname;
+                }
+                
+                let request = new XMLHttpRequest();
+                
+                request.open('POST', url);
+                request.setRequestHeader("X-CSRFToken", csrf_token);
+                request.addEventListener('load', function(e) {
+                    console.log(request);
+                    console.log(request.response);
+                    
+                    if (request.status == 200) {
+                        console.log("Created new link! Updating link list ...")
+                        getAllShareLinks(); // kinda redundant (and a bit taxing since we are requesting from the server again) since we can send info to dynamically create the DOMs in the table
+                    }
+                });
+                
+                request.send(formData);
+            }
         </script>
+        {%- endif %}
     </head>
-
-    <body>
-        <div id="download">
-            <a href="{{server_host}}/{{file_id}}/view" download>
-                <svg height="60" width="60">
-                    <polyline points="10,40 10,55 50,55 50,40" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
-                    <polyline points="20,35 30,45 40,35" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
-                    <line x1="30" y1="15" x2="30" y2="45" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></line>
-                </svg>
-            </a>
-        </div>
+    <body onclick="unfocusShareWrapper()">
+        <nav>
+            {% if not sharing -%}
+            <div id="share">
+                <a onclick="event.stopPropagation(); getAllShareLinks()">
+                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 511.997 511.997" style="enable-background:new 0 0 511.997 511.997;" xml:space="preserve" width="60" height="60">
+                        <g>
+                        	<g>
+                        		<g>
+                        			<path d="M212.26,390.24l-60.331,60.331c-25.012,25.012-65.517,25.012-90.508,0.005c-24.996-24.996-24.996-65.505-0.005-90.496     l120.683-120.683c24.991-24.992,65.5-24.992,90.491,0c8.331,8.331,21.839,8.331,30.17,0c8.331-8.331,8.331-21.839,0-30.17     c-41.654-41.654-109.177-41.654-150.831,0L31.247,329.909c-41.654,41.654-41.654,109.177,0,150.831     c41.649,41.676,109.177,41.676,150.853,0l60.331-60.331c8.331-8.331,8.331-21.839,0-30.17S220.591,381.909,212.26,390.24z"/>
+                        			<path d="M480.751,31.24c-41.654-41.654-109.199-41.654-150.853,0l-72.384,72.384c-8.331,8.331-8.331,21.839,0,30.17     c8.331,8.331,21.839,8.331,30.17,0l72.384-72.384c24.991-24.992,65.521-24.992,90.513,0c24.991,24.991,24.991,65.5,0,90.491     L317.845,284.638c-24.992,24.992-65.5,24.992-90.491,0c-8.331-8.331-21.839-8.331-30.17,0s-8.331,21.839,0,30.17     c41.654,41.654,109.177,41.654,150.831,0l132.736-132.736C522.405,140.418,522.405,72.894,480.751,31.24z"/>
+                        		</g>
+                        	</g>
+                        </g>
+                    </svg>
+                </a>
+            </div>
+            {%- endif %}
+            <div id="download">
+                <a href="{{server_host}}/{{file_id}}/view" download>
+                    <svg height="60" width="60">
+                        <polyline points="10,40 10,55 50,55 50,40" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
+                        <polyline points="20,35 30,45 40,35" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
+                        <line x1="30" y1="15" x2="30" y2="45" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></line>
+                    </svg>
+                </a>
+            </div>
+        </nav>
         {% if type[:6] == 'video/' -%}
         <video height="720" width="1280" controls>
             {% if sharing -%}
@@ -71,7 +285,6 @@
             {% else -%}
             <source src="{{server_host}}/{{file_id}}/view" type="{{ type }}">
             {%- endif %}
-            <!--<source src="http://192.168.9.115:8000/{{file_id}}" type="{{ type }}">-->
         </video>
         {% elif type[:6] == 'image/' -%}
         {% if sharing -%}
@@ -80,6 +293,27 @@
         <img id="pic" src="{{server_host}}/{{file_id}}/view">
         {%- endif %}
         <!-- <img id="pic" src="data:{{ type }};base64,{{ img_data }}"> -->
+        {%- endif %}
+        {% if not sharing -%}
+        <div id="share-wrapper" onclick="event.stopPropagation();">
+            <h3>Share Links</h3>
+            <table id="share-table">
+            </table>
+            <div id="create-wrapper">
+                <div id="submit-create-link">Create Link</div>
+                <select id="datetime-type">
+                    <option value="0">Local datetime</option>
+                    <option value="1">Duration</option>
+                    <option value="2">Forever</option>
+                </select>
+                <div class="datetime-input selected" id="datetime-opt-0">
+                    <input type="datetime-local" name="datetime">
+                </div>
+                <div class="datetime-input" id="datetime-opt-1">
+                    <div class="picker-helper"></div>
+                </div>
+            </div>
+        </div>
         {%- endif %}
     </body>
 </html>
