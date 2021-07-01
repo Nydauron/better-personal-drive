@@ -218,18 +218,24 @@
                     $('.datetime-input').removeClass('selected');
                     $('#datetime-opt-' + option).addClass('selected');
                     $('#submit-create-link').unbind('click');
-                    $('#submit-create-link').click(() => {createNewShareLink(parseInt(option), $('.picker-helper').data('durationPicker').getValue());});
+                    $('#submit-create-link').click(() => {createNewShareLink(parseInt(option));});
                 });
+                
+                // Setting default option
+                $('#submit-create-link').click(() => {createNewShareLink(parseInt(0));});
+                $('#datetime-opt-0').addClass("selected");
             });
             
-            async function createNewShareLink(optionNum, data) {
+            async function createNewShareLink(optionNum) {
                 let formData = new FormData();    
                 
                 switch (optionNum) {
                     case 0:
+                        expires_datetime = new Date($('#datetime-opt-0-input').val());
+                        formData.append("expire_at", JSON.stringify({"datetime": expires_datetime.toISOString()}));
                         break;
                     case 1:
-                        let seconds = parseInt(data);
+                        let seconds = parseInt($('.picker-helper').data('durationPicker').getValue());
                         if (seconds == NaN) {
                             // user manipulated data value
                             return;
@@ -321,8 +327,8 @@
                     <option value="1">Duration</option>
                     <option value="2">Forever</option>
                 </select>
-                <div class="datetime-input selected" id="datetime-opt-0">
-                    <input type="datetime-local" name="datetime">
+                <div class="datetime-input" id="datetime-opt-0">
+                    <input type="datetime-local" id="datetime-opt-0-input">
                 </div>
                 <div class="datetime-input" id="datetime-opt-1">
                     <div class="picker-helper"></div>

@@ -14,6 +14,8 @@ import base64
 from dotenv import load_dotenv
 import jwt
 import datetime
+import dateutil.parser
+import pytz
 from functools import update_wrapper
 import inspect
 from keys import JWT_PRIV_KEY, JWT_PUB_KEY, JWT_STOR_KEY
@@ -300,7 +302,7 @@ def delete_share_url(share_id_str):
 @app.route('/create-share-url/<file_id>', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def generate_share_url(file_id):
-    current_time = datetime.datetime.utcnow()
+    current_time = datetime.datetime.now(tz=pytz.utc)
     if 'expire_in' in request.form:
         timedelta_info = json.loads(request.form['expire_in'])
         
@@ -309,15 +311,18 @@ def generate_share_url(file_id):
         else:
             return jsonify(sucess=False), 400
         
-        
         expires_datetime = current_time + duration
         if expires_datetime <= current_time:
             return jsonify(sucess=False), 404
         share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = expires_datetime)
         
     elif 'expire_at' in request.form:
-        pass
-    
+        iso_info = json.loads(request.form['expire_at'])
+        expires_datetime = dateutil.parser.isoparse(iso_info['datetime'])
+        print(expires_datetime)
+        if not expires_datetime or expires_datetime <= current_time:
+            return jsonify(sucess=False), 404
+        share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = expires_datetime)
     else:
         share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = None)
     
