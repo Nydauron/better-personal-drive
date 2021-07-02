@@ -53,6 +53,7 @@ def check_auth(tok_name, users_allowed):
                     return f(tok_data=tok_data, *args, **kwargs)
                 return f(*args, **kwargs)
             else:
+                session['auth_redirect'] = request.full_path
                 return redirect('/login')
         return update_wrapper(wrapper, f)
     return decorator
@@ -109,7 +110,7 @@ def login():
         print(f"{request.form['user']}: {account}")
         if account and bcrypt.check_password_hash(account.hashed_pass, str(request.form['pass'])):
             session['userToken'] = generate_JWT_token(account.username)
-            return redirect('/')
+            return redirect(session.get('auth_redirect', '/'))
         flash("Incorrect user credentials.")
         return redirect('.')
     else:
