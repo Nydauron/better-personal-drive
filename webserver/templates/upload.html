@@ -13,7 +13,7 @@
                 /* font-family: "Dosis-Light", serif; */
                 padding: 10px 5px;
             }
-            td.item-type {
+            td.item-type, td.item-added, td.item-modified, td.item-accessed {
                 text-align: center;
             }
             #fileProgress {
@@ -50,9 +50,10 @@
                 transition: background 1s;
             }
             #drive-directory.draghover {
-                background: blue;
+                background: lightblue;
             }
         </style>
+        <script src="https://code.jquery.com/jquery-3.6.0.slim.js"></script>
         <script>
             console.log(window.location.pathname)
             let csrf_token = "{{ csrf_token() }}";
@@ -62,6 +63,7 @@
                 let file = inp.files[0];      
                      
                 formData.append("file", file);
+                formData.append("modified_at", file.lastModifiedDate.toISOString());
                 // formData.append("name", file.name);
                 
                 // const ctrl = new AbortController()    // timeout
@@ -169,6 +171,83 @@
                 ev.preventDefault();
                 document.getElementById('drive-directory').classList.remove('draghover');
             }
+            
+            $(document).ready(() => {
+                refreshDirectory();
+            });
+            
+            function refreshDirectory() {
+                console.log(window.location.pathname)
+                
+                let request = new XMLHttpRequest();
+                let url = "/dir" + window.location.pathname;
+                
+                request.open('GET', url);
+                request.addEventListener('load', function(e) {
+                    if (request.status == 200) {
+                        DIR_ITEMS = JSON.parse(request.response)['items'];
+                        sortAndDisplayDir(sortByName);
+                    }
+                });
+                
+                request.send();
+            }
+            
+            function sortAndDisplayDir(comFunct) {
+                DIR_ITEMS.sort(comFunct);
+                $('#table-directory').html('');
+                drawHeaderRow();
+                DIR_ITEMS.forEach((e) => {
+                    drawDirRow(e);
+                });
+            }
+            
+            function drawHeaderRow() {
+                table = $('#table-directory');
+                cells = [
+                    $('<th></th>', {text: 'Name'}),
+                    $('<th></th>', {text: 'Type'}),
+                    $('<th></th>', {text: 'Date Added'}),
+                    $('<th></th>', {text: 'Last Modified'}),
+                    $('<th></th>', {text: 'Last Accessed'})
+                ];
+                table.append($('<tr></tr>').append(cells));
+            }
+            
+            function drawDirRow(dir_info) {
+                table = $('#table-directory');
+                cells = [
+                    $('<td></td>', {class: 'item-name'}).append($('<a></a>', {text: dir_info['name'], href: "/" + dir_info['uuid']})),
+                    $('<td></td>', {class: 'item-type', text: dir_info['type']}),
+                    $('<td></td>', {class: 'item-added', text: (new Date(dir_info['created_at'])).toLocaleString()}),
+                    $('<td></td>', {class: 'item-modified', text: (new Date(dir_info['last_modified_at'])).toLocaleString()}),
+                    $('<td></td>', {class: 'item-accessed', text: (new Date(dir_info['last_accessed_at'])).toLocaleString()})
+                ];
+                table.append($('<tr></tr>').append(cells));
+                
+            }
+            
+            function sortByName(el1, el2) {
+                if (el1.type === 'folder' && el2.type != "folder") {
+                    return -1;
+                }
+                if (el1.type != 'folder' && el2.type === "folder") {
+                    return 1;
+                }
+                
+                return el1.name.toLowerCase().localeCompare(el2.name.toLowerCase());
+            }
+            
+            function sortByAdded(el1, el2) {
+                if (el1.type === 'folder' && el2.type != "folder") {
+                    return 1;
+                }
+                if (el1.type != 'folder' && el2.type === "folder") {
+                    return -1;
+                }
+                
+                return (new Date(el2['created_at'])).getTime() - (new Date(el1['created_at'])).getTime();
+            }
         </script>
     </head>
     
@@ -176,18 +255,11 @@
         {% include 'header.html' %}
         <section>
             <article id="drive-directory" ondragenter="dragEnterHandler(event)" ondragleave="dragLeaveHandler(event)" ondragover="event.preventDefault()" ondrop="dropHandler(event)">
-                <table>
+                <table id="table-directory">
                     <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Date Created</th>
-                        <th>Date Added</th>
-                        <th>Last Modified</th>
+                        <td>KEKWait, there's nothing here.<td>
                     </tr>
-                    {% for item in files -%}
-                    <tr><td class="item-name"><a href="{{ host }}/{{ item['uuid'] }}">{{ item['name'] }}</a></td><td class="item-type">{{ item['type'] }}</td> <td class="item-created"></td> <td class="item-added"></td> <td class="item-modified"></td></tr>
-                    {%- endfor %}
-            </table>
+                </table>
             </article>
         </section>
         <input type="file" id="fileUpload" name="filename" onchange="upload_file(this)">

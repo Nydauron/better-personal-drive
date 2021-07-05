@@ -150,7 +150,7 @@ def generate_JWT_storage_token(duration = datetime.timedelta(seconds=5)):
     #     "cty": "layer-eit;v=1",     # String - Express a Content Type of Layer External Identity Token, version 1
     #     "kid": KEY_ID               # String - Private Key associated with "layer.pem", found in the Layer Dashboard
     # },
-    data = {'nbf': curr_time, 'exp': curr_time + duration, 'iat': curr_time, 'iss': 'webserver-admin', 'aud': 'webserver-admin', 'alg': "HS256"}
+    data = {'nbf': curr_time, 'exp': curr_time + duration, 'iat': curr_time, 'iss': 'webserver-admin', 'aud': 'webserver-admin', 'alg': "RS256"}
     
     return jwt.encode(data, key=JWT_STOR_KEY, algorithm="RS256")
 
@@ -174,6 +174,19 @@ def is_valid_token(tok, users_allowed = ['jareth']):
         return (True, decoded_tok)
     return (False, None)
 
+@app.route('/dir/')
+@app.route('/dir/<dir_id>')
+@check_auth('userToken', ['jareth'])
+def get_folder_directory(dir_id=""):
+    try:
+        admin_tok = generate_JWT_storage_token()
+        r = requests.post(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+    except requests.exceptions.ConnectionError:
+        print("Failed to connect to storage server. Is the server down?")
+        return jsonify(success=False), 500
+    
+    return jsonify(items=r.json()), r.status_code
+
 @app.route('/')
 @app.route('/<dir_id>')
 @check_auth('userToken', ['jareth'])
@@ -183,7 +196,6 @@ def frontend_upload(dir_id=""):
 def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     try:
         admin_tok = generate_JWT_storage_token()
-        # print(admin_tok)
         r = requests.post(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
@@ -192,8 +204,7 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
         return jsonify(success=False), r.status_code
     # print(r.headers)
     if r.headers['Query-Type'] == "folder":
-        items = r.json()
-        return render_template('upload.html', files = items)
+        return render_template('upload.html') # files will not be parsed by server now
     if r.headers['Query-Type'] == "file":
         # print(r.headers['Content-Type'][:6])
         if r.headers['Content-Type'][:6] == "image/":
@@ -257,11 +268,17 @@ def view_file(dir_id):
 @app.route('/<dir>/mkdir', methods=['POST'])
 @app.route('/mkdir', methods=['POST'])
 @check_auth('userToken', ['jareth'])
-def backend_mkdir(dir = None):
+def mkdir_handler(dir = None):
     parent_uuid = 0
     if dir != None:
         parent_uuid = int(dir)
     r = requests.post(f"{FILE_SERVER_HOST}/mkdir?t={url_fix(generate_JWT_storage_token())}", data={'parent_uuid': parent_uuid, "name": request.form['name']})
+    return r.json(), r.status_code
+
+@app.route('/delete', methods=['POST'])
+@check_auth('userToken', ['jareth'])
+def delete_handler():
+    r = requests.post(f"{FILE_SERVER_HOST}/delete?t={url_fix(generate_JWT_storage_token())}", data={"id": request.form['id']})
     return r.json(), r.status_code
 
 @app.route('/get-share-urls/<file_id>', methods=['POST'])
@@ -337,7 +354,7 @@ def get_share_view_page(share_id_str):
     is_valid, file_id = is_valid_share_link(share_id_str)
     if not is_valid:
         return abort(404)
-    return get_file_dir(file_id, True, share_id_str)
+    return get_file_dir(file_id, True, share_id_str) # having share_id_str is kinda sus ngl, but the validation does seem to provide some form of sanitation
 
 @app.route('/sharing/<share_id_str>/view', methods=['GET'])
 def get_share_content(share_id_str):
@@ -368,7 +385,7 @@ def backend_upload(dir = None):
     url = f"{FILE_SERVER_HOST}/upload"
     if dir:
         url += f"/{dir}"
-    r = requests.post(f"{url}?t={url_fix(generate_JWT_storage_token())}", files={f"{f.filename}": f})
+    r = requests.post(f"{url}?t={url_fix(generate_JWT_storage_token())}", files={f"{f.filename}": f}, data={'modified_at': request.form['modified_at']})
     print(r)
     return r.json(), r.status_code
     

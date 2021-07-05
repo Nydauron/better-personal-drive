@@ -17,6 +17,8 @@ import inspect
 from models import db, DirectoryFile
 from flask_migrate import Migrate
 from config import JWT_PUB_FILE, DATABASE_URI
+import datetime
+import dateutil.parser
 
 def load_jwt_public_key():
     # Should create some error if it cant find private key file
@@ -90,9 +92,10 @@ class DriveHandler(FileSystemEventHandler):
             return
         # print("on_created", event.src_path)
         
-        type = 'video/x-matroska' if os.path.splitext(event.src_path)[1] == '.mkv' else mimetypes.guess_type(event.src_path)[0]
-        if type == None:
+        if os.path.isdir(event.src_path):
             type = "folder"
+        else:
+            type = 'video/x-matroska' if os.path.splitext(event.src_path)[1] == '.mkv' else mimetypes.guess_type(event.src_path)[0]
         id = uuid.uuid1()
         new_path = os.path.join(os.path.dirname(event.src_path), str(id.int))
         os.rename(event.src_path, new_path)
@@ -138,8 +141,34 @@ def get_folder_path():
     if dir_item:
         parent_path = os.path.join(MEDIA_PATH, dir_item.path)
     
-    mkdir_path = os.path.join(parent_path, request.form['name'])
+    id = uuid.uuid1()
+    mkdir_path = os.path.join(parent_path, str(id.int))
+    dir_item = DirectoryFile(uuid=id, name=request.form['name'], mimetype="folder", path=os.path.relpath(mkdir_path, MEDIA_PATH), drive_creation_date=datetime.datetime.now(tz = datetime.timezone.utc))
     os.mkdir(mkdir_path)
+    db.session.add(dir_item)
+    db.session.commit()
+    return jsonify(success=True), 200
+    
+@app.route('/delete', methods=['POST'])
+@check_req_auth('t')
+def delete_file():
+    raw_uuid_int = int(request.form['id'])
+    given_uuid = uuid.UUID(int=raw_uuid_int)
+    
+    dir_item = DirectoryFile.query.filter_by(uuid=given_uuid).first()
+    if not dir_item:
+        return jsonify(success=False), 400
+    path_to_delete = dir_item.path
+    
+    if dir_item.mimetype == "folder":
+        sub_files = DirectoryFile.filter(DirectoryFile.path.startswith(path_to_delete)).all()
+        
+        for file in sub_files:
+            db.session.delete(file)
+    
+    db.session.delete(dir_item)
+    db.session.commit()
+    
     return jsonify(success=True), 200
     
 @app.route('/folder', methods=['POST'])
@@ -197,15 +226,26 @@ def get_folder_directory_response(file_path):
         
         if not item_names:
             return []
-            
+        
         dir_items = DirectoryFile.query.filter(DirectoryFile.uuid.in_(tuple(item_names))).all()
         
         if not dir_items:
             return []
         
-        return [{'name': item.name, 'type': item.mimetype, 'uuid': item.uuid.int} for item in dir_items]
+        def gen_metadata(db_item):
+            file_stat = os.stat(os.path.join(MEDIA_PATH, db_item.path))
+            return {
+                'name': db_item.name,
+                'type': db_item.mimetype,
+                'uuid': str(db_item.uuid.int),
+                'created_at': db_item.drive_creation_date,
+                'last_modified_at': datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.timezone.utc),
+                'last_accessed_at': datetime.datetime.fromtimestamp(file_stat.st_atime, tz=datetime.timezone.utc),
+                'size': file_stat.st_size
+            }
+        return [gen_metadata(item) for item in dir_items]
     return None
-        
+    
 # For authetication, the plan is to have the webserver create a token that can be verified by this nas-server
 # This should apply when the webserver makes a request for a folder/file from this server alongside
 #  when the end-user makes a request for a folder/file from this server
@@ -214,6 +254,8 @@ def get_folder_directory_response(file_path):
 #  Will have set expiry datetime
 #  Will mention user authenticated as ['webserver/admin', 'jareth', 'guestlink']
 #  Directory that the token is valid for (applies more towards if user is 'guestlink')
+
+# Turn this to using GET and HEAD
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/<str_id>', methods=['GET', 'POST'])
 @check_req_auth('t')
@@ -258,7 +300,7 @@ def serve_file(str_id=None):
             #     return resp # jsonify(resp), 200
             # 
             # return jsonify(success=False), 500
-        else:
+        elif not request.form.get('only_get_dir', False):
             resp = None
             if request.method == 'POST':
                 empty_file = io.BytesIO()
@@ -295,8 +337,7 @@ def serve_file(str_id=None):
             
             resp.headers['Query-Type'] = 'file'
             return resp
-    else:
-        return jsonify(success=False), 404
+    return jsonify(success=False), 404
 
 # @app.route('/process', methods=['POST'])
 # @check_req_auth('t')
@@ -345,19 +386,50 @@ def upload_handler(dir_id=None):
         actual_parent_path = folder.path
     for filename in request.files.keys():
         f = request.files[filename]
-        path = os.path.join(MEDIA_PATH, actual_parent_path, secure_filename(filename))
-        print(path)
-        f.save(path)
+        if os.path.isdir(filename):
+            type = "folder"
+        else:
+            type = 'video/x-matroska' if os.path.splitext(filename)[1] == '.mkv' else mimetypes.guess_type(filename)[0]
+        id = uuid.uuid1()
+        new_path = os.path.join(MEDIA_PATH, actual_parent_path, str(id.int))
+        last_modified = dateutil.parser.isoparse(request.form['modified_at'])
+        dir_item = DirectoryFile(uuid=id, name=filename, mimetype=type, path=os.path.relpath(new_path, MEDIA_PATH), drive_creation_date=last_modified)
+        # path = os.path.join(MEDIA_PATH, actual_parent_path, secure_filename(filename))
+        print(new_path)
+        f.save(new_path)
+        os.utime(new_path, (last_modified.timestamp(), last_modified.timestamp()))
+        db.session.add(dir_item)
+    db.session.commit()
     
     return jsonify(success=True), 200
+    
+# def on_created(self, event):
+#     # I stg Synology u stoopid piece of shit
+#     if '@eaDir' in event.src_path:
+#         return
+#     # print("on_created", event.src_path)
+# 
+#     if os.path.isdir(event.src_path):
+#         type = "folder"
+#     else:
+#         type = 'video/x-matroska' if os.path.splitext(event.src_path)[1] == '.mkv' else mimetypes.guess_type(event.src_path)[0]
+#     id = uuid.uuid1()
+#     new_path = os.path.join(os.path.dirname(event.src_path), str(id.int))
+#     os.rename(event.src_path, new_path)
+# 
+#     dir_item = DirectoryFile(uuid=id, name=os.path.basename(event.src_path), mimetype=type, path=os.path.relpath(new_path, MEDIA_PATH))
+# 
+#     with app.app_context():
+#         db.session.add(dir_item)
+#         db.session.commit()
 
-file_handler = DriveHandler()
-observer = Observer()
-observer.schedule(file_handler, path=MEDIA_PATH, recursive=True)
+# file_handler = DriveHandler()
+# observer = Observer()
+# observer.schedule(file_handler, path=MEDIA_PATH, recursive=True)
 print(f"Storage is located at {MEDIA_PATH}")
-observer.start()
+# observer.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=os.getenv('FLASK_PORT'), threaded=True)
-    observer.stop()
-    observer.join()
+    # observer.stop()
+    # observer.join()
