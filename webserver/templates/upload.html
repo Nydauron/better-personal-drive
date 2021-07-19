@@ -57,29 +57,14 @@
         <script>
             console.log(window.location.pathname)
             let csrf_token = "{{ csrf_token() }}";
+            let DRIVE_COLS = ['name-col', 'type-col', 'added-col', 'mod-col', 'access-col'];
+            let DRIVE_ITEMS = [];
             async function upload_file(inp) {
                 let formData = new FormData();
-                // var reader = new FileReader();
                 let file = inp.files[0];      
                      
                 formData.append("file", file);
                 formData.append("modified_at", file.lastModifiedDate.toISOString());
-                // formData.append("name", file.name);
-                
-                // const ctrl = new AbortController()    // timeout
-                // setTimeout(() => ctrl.abort(), 5000);
-                
-                // try {
-                //     url = "/upload";
-                //     if (window.location.pathname != '/'){
-                //         url = window.location.pathname + url;
-                //     }
-                //     let r = await fetch(url, 
-                //         {method: "POST", body: formData}); //, signal: ctrl.signal}); 
-                //     console.log('HTTP response code:',r.status); 
-                // } catch(e) {
-                //     console.log('Huston we have problem...:', e);
-                // }
                 
                 progressBar = document.getElementById('fileProgress');
                 progressBar.style.display = 'block';
@@ -141,14 +126,9 @@
                     return;
                 }
                 let formData = new FormData();
-                // var reader = new FileReader();
                 let folder = inp.value;      
                      
                 formData.append("name", folder);
-                // formData.append("name", file.name);
-                
-                // const ctrl = new AbortController()    // timeout
-                // setTimeout(() => ctrl.abort(), 5000);
                 
                 try {
                     url = "/mkdir";
@@ -173,10 +153,12 @@
             }
             
             $(document).ready(() => {
-                refreshDirectory();
+                $('#table-directory').html('');
+                drawHeaderRow();
+                refreshDirectory(true);
             });
             
-            function refreshDirectory() {
+            function refreshDirectory(updateDisplay) {
                 console.log(window.location.pathname)
                 
                 let request = new XMLHttpRequest();
@@ -186,30 +168,52 @@
                 request.addEventListener('load', function(e) {
                     if (request.status == 200) {
                         DIR_ITEMS = JSON.parse(request.response)['items'];
-                        sortAndDisplayDir(sortByName);
+                        if (updateDisplay) {
+                            columnClickHandler(DRIVE_COLS[0], sortByName);
+                        }
                     }
                 });
                 
                 request.send();
             }
             
-            function sortAndDisplayDir(comFunct) {
+            function sortAndDisplayDir(comFunct, reverse) {
                 DIR_ITEMS.sort(comFunct);
-                $('#table-directory').html('');
-                drawHeaderRow();
-                DIR_ITEMS.forEach((e) => {
-                    drawDirRow(e);
+                $('#table-directory').children().not(':first').remove();
+                if (reverse) {
+                    DIR_ITEMS.slice().reverse().forEach((e) => {
+                        drawDirRow(e);
+                    });
+                } else {
+                    DIR_ITEMS.forEach((e) => {
+                        drawDirRow(e);
+                    });
+                }
+            }
+            
+            function columnClickHandler(colClass, compFunct) {
+                let reversed = $("." + colClass).data("reversed");
+                sortAndDisplayDir(compFunct, reversed);
+                
+                reverseReset = (compClass) => {
+                    if (colClass == compClass)
+                        return Boolean(reversed ^ 1);
+                    else
+                        return false;
+                };
+                DRIVE_COLS.forEach((e) => {
+                    $("." + e).data("reversed", reverseReset(e));
                 });
             }
             
-            function drawHeaderRow() {
+            function drawHeaderRow() { // TODO: Add indicators on click to show if order is ascending or descending
                 table = $('#table-directory');
                 cells = [
-                    $('<th></th>', {text: 'Name'}),
-                    $('<th></th>', {text: 'Type'}),
-                    $('<th></th>', {text: 'Date Added'}),
-                    $('<th></th>', {text: 'Last Modified'}),
-                    $('<th></th>', {text: 'Last Accessed'})
+                    $('<th></th>', {text: 'Name', class: DRIVE_COLS[0]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[0], sortByName)}),
+                    $('<th></th>', {text: 'Type', class: DRIVE_COLS[1]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[1], sortByType)}),
+                    $('<th></th>', {text: 'Date Added', class: DRIVE_COLS[2]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[2], sortByAdded)}),
+                    $('<th></th>', {text: 'Last Modified', class: DRIVE_COLS[3]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[3], sortByModified)}),
+                    $('<th></th>', {text: 'Last Accessed', class: DRIVE_COLS[4]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[4], sortByAccessed)})
                 ];
                 table.append($('<tr></tr>').append(cells));
             }
@@ -238,6 +242,17 @@
                 return el1.name.toLowerCase().localeCompare(el2.name.toLowerCase());
             }
             
+            function sortByType(el1, el2) {
+                if (el1.type === 'folder' && el2.type != "folder") {
+                    return -1;
+                }
+                if (el1.type != 'folder' && el2.type === "folder") {
+                    return 1;
+                }
+                
+                return el1.type.toLowerCase().localeCompare(el2.type.toLowerCase());
+            }
+            
             function sortByAdded(el1, el2) {
                 if (el1.type === 'folder' && el2.type != "folder") {
                     return 1;
@@ -247,6 +262,28 @@
                 }
                 
                 return (new Date(el2['created_at'])).getTime() - (new Date(el1['created_at'])).getTime();
+            }
+            
+            function sortByModified(el1, el2) {
+                if (el1.type === 'folder' && el2.type != "folder") {
+                    return 1;
+                }
+                if (el1.type != 'folder' && el2.type === "folder") {
+                    return -1;
+                }
+                
+                return (new Date(el2['last_modified_at'])).getTime() - (new Date(el1['last_modified_at'])).getTime();
+            }
+            
+            function sortByAccessed(el1, el2) {
+                if (el1.type === 'folder' && el2.type != "folder") {
+                    return 1;
+                }
+                if (el1.type != 'folder' && el2.type === "folder") {
+                    return -1;
+                }
+                
+                return (new Date(el2['last_accessed_at'])).getTime() - (new Date(el1['last_accessed_at'])).getTime();
             }
         </script>
     </head>
