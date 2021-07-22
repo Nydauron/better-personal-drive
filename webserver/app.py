@@ -180,12 +180,20 @@ def is_valid_token(tok, users_allowed = ['jareth']):
 def get_folder_directory(dir_id=""):
     try:
         admin_tok = generate_JWT_storage_token()
-        r = requests.post(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+        r = requests.head(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
         return jsonify(success=False), 500
     
-    return jsonify(items=r.json()), r.status_code
+    if r.status_code == 204 and r.headers['Query-Type'] == "folder":
+        try:
+            data_r = requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+        except requests.exceptions.ConnectionError:
+            print("Failed to connect to storage server. Is the server down?")
+            return jsonify(success=False), 500
+        return jsonify(items=data_r.json()), data_r.status_code
+    else:
+        return jsonify(success=False), 404
 
 @app.route('/')
 @app.route('/<dir_id>')
@@ -196,7 +204,7 @@ def frontend_upload(dir_id=""):
 def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     try:
         admin_tok = generate_JWT_storage_token()
-        r = requests.post(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
+        r = requests.head(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
         return jsonify(success=False), 500
@@ -208,15 +216,21 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     if r.headers['Query-Type'] == "file":
         # print(r.headers['Content-Type'][:6])
         if r.headers['Content-Type'][:6] == "image/":
-            data = BytesIO(r.content)
-            encoded_img_data = base64.b64encode(data.getvalue())
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), img_data=encoded_img_data.decode('utf-8'), sharing = is_sharing, share_id=share_id)
+            # data = BytesIO(r.content)
+            # encoded_img_data = base64.b64encode(data.getvalue())
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
             
         if r.headers['Content-Type'][:6] == "video/":
             return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
         
-        filename = re.findall(r"filename=(.+)", r.headers['Content-Disposition'])[0]
-        return send_file(BytesIO(r.content), download_name=filename, as_attachment=True)
+        try:
+            data_r = requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
+        except requests.exceptions.ConnectionError:
+            print("Failed to connect to storage server. Is the server down?")
+            return jsonify(success=False), 500
+            
+        filename = re.findall(r"filename=(.+)", data_r.headers['Content-Disposition'])[0]
+        return send_file(BytesIO(data_r.content), download_name=filename, as_attachment=True)
         
     return jsonify(success=False), 404
 

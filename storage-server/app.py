@@ -256,8 +256,8 @@ def get_folder_directory_response(file_path):
 #  Directory that the token is valid for (applies more towards if user is 'guestlink')
 
 # Turn this to using GET and HEAD
-@app.route('/', methods=['GET', 'POST'])
-@app.route('/<str_id>', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'HEAD'])
+@app.route('/<str_id>', methods=['GET', 'HEAD'])
 @check_req_auth('t')
 def serve_file(str_id=None):
     if str_id == None:
@@ -268,6 +268,8 @@ def serve_file(str_id=None):
             # print(resp_data)
         resp = make_response(jsonify(resp_data))
         resp.headers['Query-Type'] = 'folder'
+        if request.method == 'HEAD':
+            resp.status_code = 204
         return resp
     
     id = uuid.UUID(int=int(str_id))
@@ -276,39 +278,23 @@ def serve_file(str_id=None):
     if file_data:
         file_path = os.path.join(MEDIA_PATH, file_data.path)
         if file_data.mimetype == "folder":
-            # print(file_path)
-            # print(MEDIA_PATH, file_data.path)
             
             resp_data = get_folder_directory_response(file_path)
             if resp_data == None:
                 return jsonify(success=False), 500
-                # print(resp_data)
+            
             resp = make_response(jsonify(resp_data))
             resp.headers['Query-Type'] = 'folder'
+            if request.method == 'HEAD':
+                resp.status_code = 204
             return resp
-            
-            # with os.scandir(file_path) as entries:
-            #     resp_data = []
-            #     for entry in entries:
-            #         if not entry.name in BLACKLISTED_DIRS:
-            #             file_id = int(entry.name)
-            #             resp_data.append({'name': directory[file_id]['name'], 'type': directory[file_id]['type'], 'uuid': file_id})
-            #             # resp_data.append({'name': directory[file_id]['name'], 'is_folder': entry.is_dir(), 'uuid': file_id})
-            #     # print(resp_data)
-            #     resp = make_response(jsonify(resp_data))
-            #     resp.headers['Query-Type'] = 'folder'
-            #     return resp # jsonify(resp), 200
-            # 
-            # return jsonify(success=False), 500
         elif not request.form.get('only_get_dir', False):
             resp = None
-            if request.method == 'POST':
+            if request.method == 'HEAD':
                 empty_file = io.BytesIO()
                 resp = send_file(empty_file, mimetype=file_data.mimetype, as_attachment=False, download_name=file_data.name)
-                # resp = flask.Response(status=200,content_type=directory[id]['type'][:6]) # This is just wrong
-                # resp.headers['Content-Disposition'] += f"filename=\"{directory[id]['name']}\""
-            else: # elif file_data.mimetype[:6] == "video/":
-                # print(request.headers)
+                resp.status_code = 204
+            else:
                 range_header = request.headers.get('Range', None)
                 byte1, byte2 = 0, None
                 if range_header:
@@ -330,10 +316,6 @@ def serve_file(str_id=None):
                 resp.headers.add('Content-Disposition', f"filename={file_data.name}")
                 resp.headers['Query-Type'] = 'file'
                 return resp
-            # else:
-            #     # 
-            #     # print(request.headers)
-            #     resp = send_file(file_path, mimetype=file_data.mimetype, download_name=file_data.name)
             
             resp.headers['Query-Type'] = 'file'
             return resp
