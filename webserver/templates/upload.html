@@ -52,6 +52,25 @@
             #drive-directory.draghover {
                 background: lightblue;
             }
+            .drive-cols {
+                cursor: pointer;
+            }
+            .sortOrder {
+                display: none;
+                width: 20px;
+                top: 4px;
+                position: relative;
+            }
+            
+            .sortOrder.sortInc {
+                display: inline-block;
+                transform: rotate(180deg);
+                padding-right: 2px;
+            }
+            .sortOrder.sortDec {
+                display: inline-block;
+                padding-left: 2px;
+            }
         </style>
         <script src="https://code.jquery.com/jquery-3.6.0.slim.js"></script>
         <script>
@@ -191,36 +210,58 @@
                 }
             }
             
-            function columnClickHandler(colClass, compFunct) {
-                let reversed = $("." + colClass).data("reversed");
+            function columnClickHandler(colID, compFunct) {
+                let reversed = $("#" + colID).data("reversed");
                 sortAndDisplayDir(compFunct, reversed);
                 
-                reverseReset = (compClass) => {
-                    if (colClass == compClass)
+                reverseReset = (compID) => {
+                    if (colID == compID)
                         return Boolean(reversed ^ 1);
                     else
                         return false;
                 };
+                setSelected = (compID) => {
+                    if (colID == compID) {
+                        $("#" + compID).prop("selected", "selected");
+                    } else {
+                        $("#" + compID).removeProp("selected");
+                    }
+                    $("#" + compID +" > .sortOrder").removeClass("sortInc");
+                    $("#" + compID +" > .sortOrder").removeClass("sortDec");
+                };
+                drawSortOrder = (id, isReversed) => {
+                    if ($("#" + id).prop("selected") != undefined) {
+                        if (isReversed) {
+                            $("#" + id +" > .sortOrder").addClass("sortInc");
+                        } else {
+                            $("#" + id +" > .sortOrder").addClass("sortDec");
+                        }
+                    }
+                };
                 DRIVE_COLS.forEach((e) => {
-                    $("." + e).data("reversed", reverseReset(e));
+                    let isReversed = reverseReset(e);
+                    $("#" + e).data("reversed", isReversed);
+                    setSelected(e);
+                    drawSortOrder(e, isReversed);
                 });
             }
             
             function drawHeaderRow() { // TODO: Add indicators on click to show if order is ascending or descending
-                table = $('#table-directory');
-                cells = [
-                    $('<th></th>', {text: 'Name', class: DRIVE_COLS[0]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[0], sortByName)}),
-                    $('<th></th>', {text: 'Type', class: DRIVE_COLS[1]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[1], sortByType)}),
-                    $('<th></th>', {text: 'Date Added', class: DRIVE_COLS[2]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[2], sortByAdded)}),
-                    $('<th></th>', {text: 'Last Modified', class: DRIVE_COLS[3]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[3], sortByModified)}),
-                    $('<th></th>', {text: 'Last Accessed', class: DRIVE_COLS[4]}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[4], sortByAccessed)})
+                let table = $('#table-directory');
+                let arrow = $('<img></img>', {class: 'sortOrder', src: '/assets/arrow-down.png'});
+                let cells = [
+                    $('<th></th>', {text: 'Name', id: DRIVE_COLS[0], class: "drive-cols"}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[0], sortByName)}).append(arrow.clone()),
+                    $('<th></th>', {text: 'Type', id: DRIVE_COLS[1], class: "drive-cols"}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[1], sortByType)}).append(arrow.clone()),
+                    $('<th></th>', {text: 'Date Added', id: DRIVE_COLS[2], class: "drive-cols"}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[2], sortByAdded)}).append(arrow.clone()),
+                    $('<th></th>', {text: 'Last Modified', id: DRIVE_COLS[3], class: "drive-cols"}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[3], sortByModified)}).append(arrow.clone()),
+                    $('<th></th>', {text: 'Last Accessed', id: DRIVE_COLS[4], class: "drive-cols"}).data("reversed", false).click(() => {columnClickHandler(DRIVE_COLS[4], sortByAccessed)}).append(arrow.clone())
                 ];
                 table.append($('<tr></tr>').append(cells));
             }
             
             function drawDirRow(dir_info) {
-                table = $('#table-directory');
-                cells = [
+                let table = $('#table-directory');
+                let cells = [
                     $('<td></td>', {class: 'item-name'}).append($('<a></a>', {text: dir_info['name'], href: "/" + dir_info['uuid']})),
                     $('<td></td>', {class: 'item-type', text: dir_info['type']}),
                     $('<td></td>', {class: 'item-added', text: (new Date(dir_info['created_at'])).toLocaleString()}),
