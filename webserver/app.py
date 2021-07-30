@@ -204,18 +204,18 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     if r.headers['Query-Type'] == "folder":
         return render_template('upload.html') # files will not be parsed by server now
     if r.headers['Query-Type'] == "file":
+        filename = re.findall(r"filename=(.+)", r.headers['Content-Disposition'])[0][1:-1]
         if r.headers['Content-Type'][:6] == "image/" or    \
             r.headers['Content-Type'][:6] == "video/" or   \
             r.headers['Content-Type'] == "application/pdf":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
         
         try:
             data_r = requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
         except requests.exceptions.ConnectionError:
             print("Failed to connect to storage server. Is the server down?")
             return jsonify(success=False), 500
-            
-        filename = re.findall(r"filename=(.+)", data_r.headers['Content-Disposition'])[0]
+        
         return send_file(BytesIO(data_r.content), download_name=filename, as_attachment=True)
         
     return jsonify(success=False), 404
