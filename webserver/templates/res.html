@@ -24,14 +24,27 @@
                 max-width: 90vw;
                 z-index: 0;
             }
+            {% elif type == 'application/pdf' -%}
+            #pdf-viewer {
+                width: 60%; /*800px;*/
+                height: calc(100% - 143px);/*1000px;*/
+                position: relative;
+                transform: translateX(-50%);
+                left: 50%;
+                padding-top: 100px;
+                filter: invert(0) !important; /* To prevent any dark reader from screwing with this */
+            }
             {%- endif %}
             body {
                 background: black;
+                height: 100%;
+                margin: 0;
             }
             nav {
                 position: relative;
                 z-index: 1;
                 float: right;
+                margin: 10px 5px;
             }
             nav > div {
                 display: inline-block;
@@ -305,6 +318,12 @@
         <img id="pic" src="{{server_host}}/sharing/{{share_id}}/view">
         {% else -%}
         <img id="pic" src="{{server_host}}/{{file_id}}/view">
+        {%- endif %}
+        {% elif type == 'application/pdf' -%}
+        {% if sharing -%}
+        <object id="pdf-viewer" type={{type}} data="{{server_host}}/sharing/{{share_id}}/view"/>
+        {% else -%}
+        <object id="pdf-viewer" type={{type}} data="{{server_host}}/{{file_id}}/view"/>
         {%- endif %}
         {%- endif %}
         {% if not sharing -%}

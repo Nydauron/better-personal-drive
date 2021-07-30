@@ -210,6 +210,9 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
         if r.headers['Content-Type'][:6] == "video/":
             return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
         
+        if r.headers['Content-Type'] == "application/pdf":
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
+        
         try:
             data_r = requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
         except requests.exceptions.ConnectionError:
