@@ -91,7 +91,7 @@
                 let file = inp.files[0];      
                      
                 formData.append("file", file);
-                formData.append("modified_at", file.lastModifiedDate.toISOString());
+                formData.append("modified_at", new Date(file.lastModified).toISOString());
                 
                 progressBar = document.getElementById('fileProgress');
                 progressBar.style.display = 'block';
