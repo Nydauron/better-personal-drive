@@ -125,6 +125,21 @@
                 request.send(formData);
             }
             
+            async function delete_folder_file(file_id) {
+                let formData = new FormData();  
+                     
+                formData.append("id", file_id);
+                
+                try {
+                    url = "/delete";
+                    let r = await fetch(url, 
+                        {method: "POST", headers: {"X-CSRFToken": csrf_token}, body: formData}); //, signal: ctrl.signal}); 
+                    console.log('HTTP response code:',r.status); 
+                } catch(e) {
+                    console.log('Huston we have problem...:', e);
+                }
+            }
+            
             function dropHandler(ev) {
                 console.log('File(s) dropped');
 
