@@ -28,10 +28,6 @@
             body {
                 background: black;
             }
-            /* #download {
-                position: absolute;
-                right: 15px;
-            } */
             nav {
                 position: relative;
                 z-index: 1;
@@ -80,9 +76,6 @@
                 margin-bottom: 10px;
                 text-align: center;
             }
-            /* #share-wrapper > h3 {
-                text-align: center;
-            } */
             #share-wrapper.focus {
                 visibility: visible;
                 transition: opacity 0.7s;
@@ -313,7 +306,6 @@
         {% else -%}
         <img id="pic" src="{{server_host}}/{{file_id}}/view">
         {%- endif %}
-        <!-- <img id="pic" src="data:{{ type }};base64,{{ img_data }}"> -->
         {%- endif %}
         {% if not sharing -%}
         <div id="share-wrapper" onclick="event.stopPropagation();">

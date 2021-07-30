@@ -131,12 +131,7 @@ def generate_JWT_token(user = "guest", duration = datetime.timedelta(hours=1), p
                 They won\'t be able to add, edit, or delete any files but it might 
                 not be something you would want to do.''')
     curr_time = datetime.datetime.utcnow()
-    # headers = {
-    #     "typ": "JWS",               # String - Expresses a MIME Type of application/JWS
-    #     "alg": "RS256",             # String - Expresses the type of algorithm used to sign the token, must be RS256
-    #     "cty": "layer-eit;v=1",     # String - Express a Content Type of Layer External Identity Token, version 1
-    #     "kid": KEY_ID               # String - Private Key associated with "layer.pem", found in the Layer Dashboard
-    # },
+    
     data = {'drive_path': path, 'nbf': curr_time, 'exp': curr_time + duration, 'iat': curr_time, 'iss': 'webserver-admin', 'aud': user, 'alg': "RS256"}
     
     return jwt.encode(data, key=JWT_PRIV_KEY, algorithm="RS256")
@@ -144,12 +139,7 @@ def generate_JWT_token(user = "guest", duration = datetime.timedelta(hours=1), p
 def generate_JWT_storage_token(duration = datetime.timedelta(seconds=5)):
     global JWT_STOR_KEY
     curr_time = datetime.datetime.utcnow()
-    # headers = {
-    #     "typ": "JWS",               # String - Expresses a MIME Type of application/JWS
-    #     "alg": "RS256",             # String - Expresses the type of algorithm used to sign the token, must be RS256
-    #     "cty": "layer-eit;v=1",     # String - Express a Content Type of Layer External Identity Token, version 1
-    #     "kid": KEY_ID               # String - Private Key associated with "layer.pem", found in the Layer Dashboard
-    # },
+    
     data = {'nbf': curr_time, 'exp': curr_time + duration, 'iat': curr_time, 'iss': 'webserver-admin', 'aud': 'webserver-admin', 'alg': "RS256"}
     
     return jwt.encode(data, key=JWT_STOR_KEY, algorithm="RS256")
@@ -210,14 +200,11 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
         return jsonify(success=False), 500
     if not r.status_code in [200, 204]:
         return jsonify(success=False), r.status_code
-    # print(r.headers)
+    
     if r.headers['Query-Type'] == "folder":
         return render_template('upload.html') # files will not be parsed by server now
     if r.headers['Query-Type'] == "file":
-        # print(r.headers['Content-Type'][:6])
         if r.headers['Content-Type'][:6] == "image/":
-            # data = BytesIO(r.content)
-            # encoded_img_data = base64.b64encode(data.getvalue())
             return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
             
         if r.headers['Content-Type'][:6] == "video/":
@@ -237,19 +224,6 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
 @app.route('/<dir_id>/view')
 @check_auth('userToken', ['jareth'])
 def file_view(dir_id):
-    # BUG (Fixed): Trying to play a large size video becomes literally unplayable using this method
-    #  since this function is recieving the entire video first then sending it to the
-    #  user (double the buffer time and in reality this is longer bc the end user
-    #  player is buffering while playing the video simutaneously)
-    
-    # It is more economical CPU time wise and end user wise if we just directly
-    #  connect to the storage server. This however means we need to use our user/share
-    #  token to authenticate.
-    
-    # The NAS fucking sucks absolute dick when it comes to trying to decrypt via RSA
-    #  because there is no way to install the necessary Debian libraries/binaries
-    #  (apt not included, doesnt come with ssl libraries or python3-cryptography)
-    # print(request.headers)
     return view_file(dir_id)
     
 def view_file(dir_id):
@@ -261,8 +235,6 @@ def view_file(dir_id):
         data=request.get_data(),
         cookies=request.cookies,
         allow_redirects=False)
-        # requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(generate_JWT_storage_token())}")
-        # print("sent request")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
         return jsonify(success=False), 500
@@ -275,8 +247,6 @@ def view_file(dir_id):
         headers = [(name, value) for (name, value) in r.raw.headers.items() if name.lower() not in excluded_headers]
         response = Response(r.content, r.status_code, r.raw.headers.items())
         return response
-        # filename = re.search(r"(?<=filename=)(.+)", r.headers['Content-Disposition']).group() # re.findall(r"filename=(.+)", r.headers['Content-Disposition'])[0]
-        # return send_file(BytesIO(r.content), download_name=filename, mimetype=r.headers['Content-Type'])
     return jsonify(success=False), 404
 
 @app.route('/<dir>/mkdir', methods=['POST'])
