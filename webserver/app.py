@@ -204,13 +204,9 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     if r.headers['Query-Type'] == "folder":
         return render_template('upload.html') # files will not be parsed by server now
     if r.headers['Query-Type'] == "file":
-        if r.headers['Content-Type'][:6] == "image/":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
-            
-        if r.headers['Content-Type'][:6] == "video/":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
-        
-        if r.headers['Content-Type'] == "application/pdf":
+        if r.headers['Content-Type'][:6] == "image/" or    \
+            r.headers['Content-Type'][:6] == "video/" or   \
+            r.headers['Content-Type'] == "application/pdf":
             return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
         
         try:
