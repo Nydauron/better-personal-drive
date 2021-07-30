@@ -13,6 +13,8 @@ class GUID(TypeDecorator):
 
     """
     impl = LargeBinary
+    
+    cache_ok = True
 
     def load_dialect_impl(self, dialect):
         if dialect.name == 'postgresql':
