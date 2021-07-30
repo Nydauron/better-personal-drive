@@ -294,7 +294,12 @@ def upload_handler(dir_id=None):
     print(dir_id)
     actual_parent_path = "."
     if dir_id:
-        folder = DirectoryFile.query.filter_by(uuid=dir_id, mimetype="folder").first()
+        try:
+            dir_uuid = uuid.UUID(int=int(dir_id))
+        except ValueError:
+            return jsonify(success=False), 404
+        
+        folder = DirectoryFile.query.filter_by(uuid=dir_uuid, mimetype="folder").first()
         if not folder:
             return jsonify(success=False), 404
         actual_parent_path = folder.path
