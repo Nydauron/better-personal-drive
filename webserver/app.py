@@ -191,10 +191,14 @@ def get_folder_directory(dir_id=""):
 def frontend_upload(dir_id=""):
     return get_file_dir(dir_id)
 
-def get_file_dir(dir_id, share_id = ""):
+def get_file_dir(dir_id : str, share_id = "" : str):
     try:
-        admin_tok = generate_JWT_storage_token()
-        r = requests.head(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}")
+        int_dir_id = int(dir_id)
+    except ValueError:
+        abort(400)
+    
+    try:
+        r = requests.head(f"{FILE_SERVER_HOST}/{int_dir_id}?t={url_fix(generate_JWT_storage_token())}")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
         return abort(500)
@@ -208,10 +212,10 @@ def get_file_dir(dir_id, share_id = ""):
         if r.headers['Content-Type'][:6] == "image/" or    \
             r.headers['Content-Type'][:6] == "video/" or   \
             r.headers['Content-Type'] == "application/pdf":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = escape(dir_id), sharing = bool(share_id), share_id=escape(share_id))
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = int_dir_id, sharing = bool(share_id), share_id=escape(share_id))
         
         try:
-            data_r = requests.get(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}")
+            data_r = requests.get(f"{FILE_SERVER_HOST}/{int_dir_id}?t={url_fix(generate_JWT_storage_token())}")
         except requests.exceptions.ConnectionError:
             print("Failed to connect to storage server. Is the server down?")
             return abort(500)
@@ -225,14 +229,19 @@ def get_file_dir(dir_id, share_id = ""):
 
 @app.route('/<dir_id>/view')
 @check_auth('userToken', ['jareth'])
-def file_view(dir_id):
+def view_file_router(dir_id):
     return view_file(dir_id)
     
-def view_file(dir_id):
+def view_file(dir_id : str):
+    try:
+        int_dir_id = int(dir_id)
+    except ValueError:
+        abort(400)
+    
     try:
         r = requests.request(
         method=request.method,
-        url=f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(generate_JWT_storage_token())}",
+        url=f"{FILE_SERVER_HOST}/{int_dir_id}?t={url_fix(generate_JWT_storage_token())}",
         headers={key: value for (key, value) in request.headers if key != 'Host'},
         data=request.get_data(),
         cookies=request.cookies,
@@ -257,7 +266,10 @@ def view_file(dir_id):
 def mkdir_handler(dir = None):
     parent_uuid = 0
     if dir != None:
-        parent_uuid = int(dir)
+        try:
+            parent_uuid = int(dir)
+        except ValueError:
+            abort(400)
     r = requests.post(f"{FILE_SERVER_HOST}/mkdir?t={url_fix(generate_JWT_storage_token())}", data={'parent_uuid': parent_uuid, "name": request.form['name']})
     return r.json(), r.status_code
 
@@ -270,9 +282,13 @@ def delete_handler():
 @app.route('/api/get-share-urls/<file_id>', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def get_all_share_links(file_id):
-    item_id = uuid.UUID(int=int(file_id))
+    try:
+        item_id = uuid.UUID(int=int(file_id))
+    except ValueError:
+        return abort(400)
     if not item_id:
         return abort(400)
+    
     share_urls = ShareLink.query.filter_by(item_id=item_id).all()
     
     valid_links = []
@@ -307,6 +323,12 @@ def delete_share_url(share_id_str):
 @check_auth('userToken', ['jareth'])
 def generate_share_url(file_id):
     current_time = datetime.datetime.now(tz=pytz.utc)
+    
+    try:
+        file_id_int = int(file_id)
+    except ValueError:
+        return jsonify(sucess=False), 400
+    
     if 'expire_in' in request.form:
         timedelta_info = json.loads(request.form['expire_in'])
         
@@ -318,7 +340,7 @@ def generate_share_url(file_id):
         expires_datetime = current_time + duration
         if expires_datetime <= current_time:
             return jsonify(sucess=False), 404
-        share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = expires_datetime)
+        share_url = ShareLink(item_id = uuid.UUID(int=file_id_int), generated_at = current_time, expires_at = expires_datetime)
         
     elif 'expire_at' in request.form:
         iso_info = json.loads(request.form['expire_at'])
@@ -326,9 +348,9 @@ def generate_share_url(file_id):
         print(expires_datetime)
         if not expires_datetime or expires_datetime <= current_time:
             return jsonify(sucess=False), 404
-        share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = expires_datetime)
+        share_url = ShareLink(item_id = uuid.UUID(int=file_id_int), generated_at = current_time, expires_at = expires_datetime)
     else:
-        share_url = ShareLink(item_id = uuid.UUID(int=int(file_id)), generated_at = current_time, expires_at = None)
+        share_url = ShareLink(item_id = uuid.UUID(int=file_id_int), generated_at = current_time, expires_at = None)
     
     db.session.add(share_url)
     db.session.commit()
@@ -349,7 +371,7 @@ def get_share_content(share_id_str):
         return abort(404)
     return view_file(file_id)
     
-def is_valid_share_link(share_id_str):
+def is_valid_share_link(share_id_str : str):
     share_uuid = uuid.UUID(hex=share_id_str)
     if not share_uuid:
         return False, None
@@ -370,7 +392,11 @@ def backend_upload(dir = None):
     
     url = f"{FILE_SERVER_HOST}/upload"
     if dir:
-        url += f"/{url_fix(dir)}"
+        try:
+            dir_id = int(dir)
+        except ValueError:
+            return jsonify(success=False), 400
+        url += f"/{dir_id}"
     r = requests.post(f"{url}?t={url_fix(generate_JWT_storage_token())}", files={f"{f.filename}": f}, data={'modified_at': request.form['modified_at']})
     
     return r.json(), r.status_code
