@@ -191,7 +191,7 @@ def get_folder_directory(dir_id=""):
 def frontend_upload(dir_id=""):
     return get_file_dir(dir_id)
 
-def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
+def get_file_dir(dir_id, share_id = ""):
     try:
         admin_tok = generate_JWT_storage_token()
         r = requests.head(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}")
@@ -208,7 +208,7 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
         if r.headers['Content-Type'][:6] == "image/" or    \
             r.headers['Content-Type'][:6] == "video/" or   \
             r.headers['Content-Type'] == "application/pdf":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
+            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = escape(dir_id), sharing = bool(share_id), share_id=escape(share_id))
         
         try:
             data_r = requests.get(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}")
@@ -340,7 +340,7 @@ def get_share_view_page(share_id_str):
     is_valid, file_id = is_valid_share_link(share_id_str)
     if not is_valid:
         return abort(404)
-    return get_file_dir(file_id, True, share_id_str) # having share_id_str is kinda sus ngl, but the validation does seem to provide some form of sanitation
+    return get_file_dir(file_id, share_id_str)
 
 @app.route('/sharing/<share_id_str>/view', methods=['GET'])
 def get_share_content(share_id_str):
