@@ -96,9 +96,9 @@
                 progressBar = document.getElementById('fileProgress');
                 progressBar.style.display = 'block';
                 
-                url = "/upload";
+                url = "/api/upload";
                 if (window.location.pathname != '/'){
-                    url = window.location.pathname + url;
+                    url = url + window.location.pathname;
                 }
                 let request = new XMLHttpRequest();
                 
@@ -131,7 +131,7 @@
                 formData.append("id", file_id);
                 
                 try {
-                    url = "/delete";
+                    url = "/api/delete";
                     let r = await fetch(url, 
                         {method: "POST", headers: {"X-CSRFToken": csrf_token}, body: formData}); //, signal: ctrl.signal}); 
                     console.log('HTTP response code:',r.status); 
@@ -172,11 +172,8 @@
                      
                 formData.append("name", folder);
                 
+                let url = "/api/mkdir" + window.location.pathname;
                 try {
-                    url = "/mkdir";
-                    if (window.location.pathname != '/'){
-                        url = window.location.pathname + url;
-                    }
                     let r = await fetch(url, 
                         {method: "POST", headers: {"X-CSRFToken": csrf_token}, body: formData}); //, signal: ctrl.signal}); 
                     console.log('HTTP response code:',r.status); 
@@ -204,7 +201,7 @@
                 console.log(window.location.pathname)
                 
                 let request = new XMLHttpRequest();
-                let url = "/dir" + window.location.pathname;
+                let url = "/api/dir" + window.location.pathname;
                 
                 request.open('GET', url);
                 request.addEventListener('load', function(e) {

@@ -114,7 +114,7 @@ def login():
         flash("Incorrect user credentials.")
         return redirect('.')
     else:
-        return jsonify(success=False), 404
+        return abort(404)
         
 @app.route('/logout', methods=['GET'])
 def logout():
@@ -164,20 +164,20 @@ def is_valid_token(tok, users_allowed = ['jareth']):
         return (True, decoded_tok)
     return (False, None)
 
-@app.route('/dir/')
-@app.route('/dir/<dir_id>')
+@app.route('/api/dir/')
+@app.route('/api/dir/<dir_id>')
 @check_auth('userToken', ['jareth'])
 def get_folder_directory(dir_id=""):
     try:
         admin_tok = generate_JWT_storage_token()
-        r = requests.head(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+        r = requests.head(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
         return jsonify(success=False), 500
     
     if r.status_code == 204 and r.headers['Query-Type'] == "folder":
         try:
-            data_r = requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+            data_r = requests.get(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
         except requests.exceptions.ConnectionError:
             print("Failed to connect to storage server. Is the server down?")
             return jsonify(success=False), 500
@@ -194,12 +194,12 @@ def frontend_upload(dir_id=""):
 def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
     try:
         admin_tok = generate_JWT_storage_token()
-        r = requests.head(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
+        r = requests.head(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
-        return jsonify(success=False), 500
+        return abort(500)
     if not r.status_code in [200, 204]:
-        return jsonify(success=False), r.status_code
+        return abort(r.status_code)
     
     if r.headers['Query-Type'] == "folder":
         return render_template('upload.html') # files will not be parsed by server now
@@ -211,14 +211,17 @@ def get_file_dir(dir_id="", is_sharing=False, share_id = ""):
             return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = escape(dir_id), sharing = is_sharing, share_id=share_id)
         
         try:
-            data_r = requests.get(f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(admin_tok)}")
+            data_r = requests.get(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}")
         except requests.exceptions.ConnectionError:
             print("Failed to connect to storage server. Is the server down?")
-            return jsonify(success=False), 500
+            return abort(500)
+        
+        if not r.status_code in [200, 206]: # Just in case the file was deleted after our HEAD request
+            return abort(r.status_code)
         
         return send_file(BytesIO(data_r.content), download_name=filename, as_attachment=True)
         
-    return jsonify(success=False), 404
+    return abort(404)
 
 @app.route('/<dir_id>/view')
 @check_auth('userToken', ['jareth'])
@@ -229,27 +232,27 @@ def view_file(dir_id):
     try:
         r = requests.request(
         method=request.method,
-        url=f"{FILE_SERVER_HOST}/{dir_id}?t={url_fix(generate_JWT_storage_token())}",
+        url=f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(generate_JWT_storage_token())}",
         headers={key: value for (key, value) in request.headers if key != 'Host'},
         data=request.get_data(),
         cookies=request.cookies,
         allow_redirects=False)
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
-        return jsonify(success=False), 500
+        return abort(500)
     if not r.status_code in [200, 206]:
-        return jsonify(success=False), r.status_code
+        return abort(r.status_code)
     if r.headers['Query-Type'] == "folder":
-        return jsonify(success=False), 404
+        return abort(404)
     if r.headers['Query-Type'] == "file":
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
         headers = [(name, value) for (name, value) in r.raw.headers.items() if name.lower() not in excluded_headers]
         response = Response(r.content, r.status_code, r.raw.headers.items())
         return response
-    return jsonify(success=False), 404
+    return abort(404)
 
-@app.route('/<dir>/mkdir', methods=['POST'])
-@app.route('/mkdir', methods=['POST'])
+@app.route('/api/mkdir/<dir>', methods=['POST'])
+@app.route('/api/mkdir', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def mkdir_handler(dir = None):
     parent_uuid = 0
@@ -258,18 +261,18 @@ def mkdir_handler(dir = None):
     r = requests.post(f"{FILE_SERVER_HOST}/mkdir?t={url_fix(generate_JWT_storage_token())}", data={'parent_uuid': parent_uuid, "name": request.form['name']})
     return r.json(), r.status_code
 
-@app.route('/delete', methods=['POST'])
+@app.route('/api/delete', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def delete_handler():
     r = requests.post(f"{FILE_SERVER_HOST}/delete?t={url_fix(generate_JWT_storage_token())}", data={"id": request.form['id']})
     return r.json(), r.status_code
 
-@app.route('/get-share-urls/<file_id>', methods=['POST'])
+@app.route('/api/get-share-urls/<file_id>', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def get_all_share_links(file_id):
     item_id = uuid.UUID(int=int(file_id))
     if not item_id:
-        return abort(404)
+        return abort(400)
     share_urls = ShareLink.query.filter_by(item_id=item_id).all()
     
     valid_links = []
@@ -286,12 +289,12 @@ def get_all_share_links(file_id):
     
     return jsonify(urls=valid_links), 200
     
-@app.route('/delete-share-url/<share_id_str>', methods=['POST'])
+@app.route('/api/delete-share-url/<share_id_str>', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def delete_share_url(share_id_str):
     share_id = uuid.UUID(hex=share_id_str)
     if not share_id:
-        return abort(404)
+        return abort(400)
     share_url = ShareLink.query.filter_by(share_id=share_id).first()
     if not share_url:
         return jsonify(success=False), 404
@@ -300,7 +303,7 @@ def delete_share_url(share_id_str):
     db.session.commit()
     return jsonify(success=True), 200
 
-@app.route('/create-share-url/<file_id>', methods=['POST'])
+@app.route('/api/create-share-url/<file_id>', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def generate_share_url(file_id):
     current_time = datetime.datetime.now(tz=pytz.utc)
@@ -359,17 +362,17 @@ def is_valid_share_link(share_id_str):
         return False, None
     return True, res.item_id.int
 
-@app.route('/<dir>/upload', methods=['POST'])
-@app.route('/upload', methods=['POST'])
+@app.route('/api/upload/<dir>', methods=['POST'])
+@app.route('/api/upload', methods=['POST'])
 @check_auth('userToken', ['jareth'])
 def backend_upload(dir = None):
     f = request.files['file']
     
     url = f"{FILE_SERVER_HOST}/upload"
     if dir:
-        url += f"/{dir}"
+        url += f"/{url_fix(dir)}"
     r = requests.post(f"{url}?t={url_fix(generate_JWT_storage_token())}", files={f"{f.filename}": f}, data={'modified_at': request.form['modified_at']})
-    print(r)
+    
     return r.json(), r.status_code
     
 

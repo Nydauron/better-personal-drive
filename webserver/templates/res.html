@@ -131,10 +131,7 @@
             let csrf_token = "{{ csrf_token() }}";
             
             async function getAllShareLinks() {
-                url = "get-share-urls";
-                if (window.location.pathname != '/'){
-                    url = url + window.location.pathname;
-                }
+                url = "/api/get-share-urls" + window.location.pathname;
                 
                 let request = new XMLHttpRequest();
                 
@@ -195,7 +192,7 @@
             }
             
             async function deleteShareURL(shareID, rowElem) {
-                url = "delete-share-url/" + shareID;
+                let url = "/api/delete-share-url/" + shareID;
                 
                 let request = new XMLHttpRequest();
                 
@@ -253,7 +250,7 @@
                         break;
                 }
                 
-                url = "create-share-url";
+                url = "/api/create-share-url";
                 if (window.location.pathname != '/'){
                     url = url + window.location.pathname;
                 }
