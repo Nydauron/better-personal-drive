@@ -293,7 +293,7 @@
             </div>
             {%- endif %}
             <div id="download">
-                <a href="{{server_host}}/{{file_id}}/view" download>
+                <a href="/{{file_id}}/view" download>
                     <svg height="60" width="60">
                         <polyline points="10,40 10,55 50,55 50,40" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
                         <polyline points="20,35 30,45 40,35" style="stroke: rgb(255, 255, 255); stroke-width: 4;" stroke-linecap="round"></polyline>
@@ -305,22 +305,22 @@
         {% if type[:6] == 'video/' -%}
         <video height="720" width="1280" controls>
             {% if sharing -%}
-            <source src="{{server_host}}/sharing/{{share_id}}/view" type="{{ type }}">
+            <source src="/sharing/{{share_id}}/view" type="{{ type }}">
             {% else -%}
-            <source src="{{server_host}}/{{file_id}}/view" type="{{ type }}">
+            <source src="/{{file_id}}/view" type="{{ type }}">
             {%- endif %}
         </video>
         {% elif type[:6] == 'image/' -%}
         {% if sharing -%}
-        <img id="pic" src="{{server_host}}/sharing/{{share_id}}/view">
+        <img id="pic" src="/sharing/{{share_id}}/view">
         {% else -%}
-        <img id="pic" src="{{server_host}}/{{file_id}}/view">
+        <img id="pic" src="/{{file_id}}/view">
         {%- endif %}
         {% elif type == 'application/pdf' -%}
         {% if sharing -%}
-        <object id="pdf-viewer" type={{type}} data="{{server_host}}/sharing/{{share_id}}/view"/>
+        <object id="pdf-viewer" type={{type}} data="/sharing/{{share_id}}/view"/>
         {% else -%}
-        <object id="pdf-viewer" type={{type}} data="{{server_host}}/{{file_id}}/view"/>
+        <object id="pdf-viewer" type={{type}} data="/{{file_id}}/view"/>
         {%- endif %}
         {%- endif %}
         {% if not sharing -%}

@@ -27,10 +27,6 @@ load_dotenv()
 from config import SECRET_KEY, DATABASE_URI
 
 FILE_SERVER_HOST = os.getenv('FILE_SERVER_HOST')
-WEBSERVER_HOST = ""
-SFTP_IP = os.getenv('SFTP_IP')
-SFTP_PORT = int(os.getenv('SFTP_PORT'))
-SFTP_USERNAME = os.getenv('SFTP_USERNAME')
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -212,7 +208,7 @@ def get_file_dir(dir_id : str, share_id = "" : str):
         if r.headers['Content-Type'][:6] == "image/" or    \
             r.headers['Content-Type'][:6] == "video/" or   \
             r.headers['Content-Type'] == "application/pdf":
-            return render_template('res.html', type=r.headers['Content-Type'], server_host = WEBSERVER_HOST, file_name = filename, file_id = int_dir_id, sharing = bool(share_id), share_id=escape(share_id))
+            return render_template('res.html', type=r.headers['Content-Type'], file_name = filename, file_id = int_dir_id, sharing = bool(share_id), share_id=escape(share_id))
         
         try:
             data_r = requests.get(f"{FILE_SERVER_HOST}/{int_dir_id}?t={url_fix(generate_JWT_storage_token())}")
