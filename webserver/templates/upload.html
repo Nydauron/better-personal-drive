@@ -192,16 +192,20 @@
             }
             
             $(document).ready(() => {
-                $('#table-directory').html('');
-                drawHeaderRow();
-                refreshDirectory(true);
+                changeDirectory(window.location.pathname);
             });
             
-            function refreshDirectory(updateDisplay) {
-                console.log(window.location.pathname)
+            function changeDirectory(id) {
+                $('#table-directory').html('');
+                drawHeaderRow();
+                refreshDirectory(window.location.pathname, true);
+            }
+            
+            function refreshDirectory(id, updateDisplay) {
+                console.log(window.location.pathname);
                 
                 let request = new XMLHttpRequest();
-                let url = "/api/dir" + window.location.pathname;
+                let url = "/api/dir" + id;
                 
                 request.open('GET', url);
                 request.addEventListener('load', function(e) {
