@@ -49,6 +49,9 @@ def check_auth(tok_name, users_allowed):
                     return f(tok_data=tok_data, *args, **kwargs)
                 return f(*args, **kwargs)
             else:
+                if request.path[:5] == '/api/':
+                    return abort(401)
+                    
                 session['auth_redirect'] = request.full_path
                 return redirect('/login')
         return update_wrapper(wrapper, f)
