@@ -46,7 +46,6 @@ def is_valid_token(tok, users_allowed = ['webserver-admin']):
     Return True if token is valid for given user, directory (if guest), and duration
     Return False otherwise
     '''
-    decoded_tok = None
     try:
         decoded_tok = jwt.decode(tok, key=JWT_PUB_KEY, algorithms=["RS256"], audience=users_allowed)
     except jwt.ExpiredSignatureError:

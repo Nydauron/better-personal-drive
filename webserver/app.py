@@ -135,8 +135,7 @@ def generate_JWT_token(user = "guest", duration = datetime.timedelta(hours=1), p
 def generate_JWT_storage_token(duration = datetime.timedelta(seconds=5)):
     global JWT_STOR_KEY
     curr_time = datetime.datetime.utcnow()
-    
-    data = {'nbf': curr_time, 'exp': curr_time + duration, 'iat': curr_time, 'iss': 'webserver-admin', 'aud': 'webserver-admin', 'alg': "RS256"}
+    data = {'exp': curr_time + duration, 'iat': curr_time, 'iss': 'webserver-admin', 'aud': 'webserver-admin', 'alg': "RS256"}
     
     return jwt.encode(data, key=JWT_STOR_KEY, algorithm="RS256")
 
@@ -165,15 +164,15 @@ def is_valid_token(tok, users_allowed = ['jareth']):
 @check_auth('userToken', ['jareth'])
 def get_folder_directory(dir_id=""):
     try:
-        admin_tok = generate_JWT_storage_token()
-        r = requests.head(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+        # admin_tok = generate_JWT_storage_token()
+        r = requests.head(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(generate_JWT_storage_token())}", data={'only_get_dir': True})
     except requests.exceptions.ConnectionError:
         print("Failed to connect to storage server. Is the server down?")
         return jsonify(success=False), 500
     
     if r.status_code == 204 and r.headers['Query-Type'] == "folder":
         try:
-            data_r = requests.get(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(admin_tok)}", data={'only_get_dir': True})
+            data_r = requests.get(f"{FILE_SERVER_HOST}/{url_fix(dir_id)}?t={url_fix(generate_JWT_storage_token())}", data={'only_get_dir': True})
         except requests.exceptions.ConnectionError:
             print("Failed to connect to storage server. Is the server down?")
             return jsonify(success=False), 500
