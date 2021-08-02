@@ -79,6 +79,23 @@
                 display: inline-block;
                 padding-left: 2px;
             }
+            
+            #table-directory tr:hover:not(:first-child) {
+                background: gray;
+            }
+            
+            #table-directory tr.active:not(:first-child) {
+                color: #00a9e2;
+            }
+            
+            #table-directory tr:not(:first-child) {
+                transition: 0.3s background;
+                cursor: pointer;
+            }
+            
+            #table-directory {
+                border-collapse: collapse;
+            }
         </style>
         <script src="https://code.jquery.com/jquery-3.6.0.slim.js"></script>
         <script>
@@ -108,6 +125,10 @@
                     document.getElementById('upload-spin').classList.remove("uploadProcessing");
                     console.log(request.response);
                     console.log("transfer complete");
+                    
+                    if (request.status == 200) {
+                        changeDirectory(window.location.pathname.slice(1));
+                    }
                 });
                 request.upload.addEventListener('progress', function(e) {
                 	let percent_complete = (e.loaded / e.total)*100;
@@ -192,20 +213,24 @@
             }
             
             $(document).ready(() => {
-                changeDirectory(window.location.pathname);
+                onPageLoad();
             });
             
+            function onPageLoad() {
+                history.replaceState({id: window.location.pathname.slice(1)}, null, window.location.pathname);
+                changeDirectory(window.location.pathname.slice(1));
+            }
+            
             function changeDirectory(id) {
+                console.log("Refreshing directory");
                 $('#table-directory').html('');
                 drawHeaderRow();
-                refreshDirectory(window.location.pathname, true);
+                refreshDirectory(id, true);
             }
             
             function refreshDirectory(id, updateDisplay) {
-                console.log(window.location.pathname);
-                
                 let request = new XMLHttpRequest();
-                let url = "/api/dir" + id;
+                let url = "/api/dir/" + id;
                 
                 request.open('GET', url);
                 request.addEventListener('load', function(e) {
@@ -270,7 +295,7 @@
                 });
             }
             
-            function drawHeaderRow() { // TODO: Add indicators on click to show if order is ascending or descending
+            function drawHeaderRow() {
                 let table = $('#table-directory');
                 let arrow = $('<img></img>', {class: 'sortOrder', src: '/assets/arrow-down.png'});
                 let cells = [
@@ -286,14 +311,37 @@
             function drawDirRow(dir_info) {
                 let table = $('#table-directory');
                 let cells = [
-                    $('<td></td>', {class: 'item-name'}).append($('<a></a>', {text: dir_info['name'], href: "/" + dir_info['uuid']})),
+                    $('<td></td>', {class: 'item-name', text: dir_info['name']}),
                     $('<td></td>', {class: 'item-type', text: dir_info['type']}),
                     $('<td></td>', {class: 'item-added', text: (new Date(dir_info['created_at'])).toLocaleString()}),
                     $('<td></td>', {class: 'item-modified', text: (new Date(dir_info['last_modified_at'])).toLocaleString()}),
                     $('<td></td>', {class: 'item-accessed', text: (new Date(dir_info['last_accessed_at'])).toLocaleString()})
                 ];
-                table.append($('<tr></tr>').append(cells));
                 
+                let row = $('<tr></tr>');
+                row.click(() => {
+                    $('#table-directory > tr.active').removeClass('active');
+                    row.addClass('active');
+                });
+                if (dir_info['type'] == 'folder') {
+                    row.dblclick(() => {
+                        history.pushState({id: dir_info['uuid']}, null, '/' + dir_info['uuid']);
+                        changeDirectory(dir_info['uuid']);
+                    });
+                } else {
+                    row.dblclick(() => {
+                        document.location.href = '/' + dir_info['uuid'];
+                    });
+                }
+                
+                table.append(row.data("id", dir_info['uuid']).append(cells));
+            }
+            
+            window.onpopstate = (popstateEvent) => {
+                console.log(popstateEvent);
+                
+                changeDirectory(popstateEvent.state.id);
+                popstateEvent.preventDefault();
             }
             
             function sortByName(el1, el2) {
