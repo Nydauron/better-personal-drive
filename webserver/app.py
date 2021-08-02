@@ -187,12 +187,14 @@ def get_folder_directory(dir_id=""):
 def frontend_upload(dir_id=""):
     return get_file_dir(dir_id)
 
-def get_file_dir(dir_id : str, share_id = "" : str):
-    try:
-        int_dir_id = int(dir_id)
-    except ValueError:
-        abort(400)
-    
+def get_file_dir(dir_id : str, share_id : str = ""):
+    if dir_id:
+        try:
+            int_dir_id = int(dir_id)
+        except ValueError:
+            abort(400)
+    else:
+        int_dir_id = ""
     try:
         r = requests.head(f"{FILE_SERVER_HOST}/{int_dir_id}?t={url_fix(generate_JWT_storage_token())}")
     except requests.exceptions.ConnectionError:
